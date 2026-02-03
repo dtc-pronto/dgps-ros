@@ -10,13 +10,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(serial REQUIRED)
 
 # Include Cpp "include" directory
 include_directories(include)
 
 # Create Cpp executable
 add_executable(diff_GPS_node src/diff_GPS_node.cpp)
-ament_target_dependencies(diff_GPS_node rclcpp)
+ament_target_dependencies(diff_GPS_node rclcpp sensor_msgs geometry_msgs serial)
 
 # Install Cpp executables
 install(TARGETS

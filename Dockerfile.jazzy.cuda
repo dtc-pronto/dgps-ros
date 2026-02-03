@@ -54,9 +54,12 @@ RUN sudo apt-get update && sudo apt-get install -y \
     ros-jazzy-sensor-msgs \
     ros-jazzy-geometry-msgs \
     ros-jazzy-std-msgs \
+    ros-jazzy-rclcpp \
+    ros-jazzy-serial \
     python3-opencv \
     libusb-1.0-0-dev libgtk2.0-0 libqt5widgets5 \
  && rm -rf /var/lib/apt/lists/*
+  
 
 # ------------------ Workspace setup ------------------
 USER $USER

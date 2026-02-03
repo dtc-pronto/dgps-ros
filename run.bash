@@ -5,6 +5,7 @@ docker run -it --rm \
     --gpus all \
     --network=host \
     --ipc=host \
+    --device=/dev/ttyACM0 \
     --privileged \
     -v "/dev:/dev" \
     -v "/tmp/.X11-unix:/tmp/.X11-unix" \
