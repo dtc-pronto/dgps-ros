@@ -1,8 +1,6 @@
 
 
 #include "ros/dgps_node.hpp"
-#include <numbers>
-double pi = std::numbers::pi;
 
 
 using namespace dgps;
@@ -11,16 +9,18 @@ DGPSNode::DGPSNode() : Node("dgps_node")
 {
     declare_parameter<std::string>("dev", "/dev/ttyACM0");
     declare_parameter<int>("baud", 460800);
-    
+    declare_parameter<double>("baseline", 0.5);
+
     std::string dev = get_parameter("dev").as_string();
     int baud = get_parameter("baud").as_int();
+    baseline_ = get_parameter("baseline").as_double();
 
     right_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/right/fix", 10); // antenna 1
     left_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/left/fix", 10); // antenna 2
     avg_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/center/fix", 10); // antenna average
 
     heading_pub_ = create_publisher<std_msgs::msg::Float64>("/dgps/heading", 10);
-    orient_pub_ = create_publisher<geometry_msgs::msg::Quaternion>("/dgps/orientation", 10);
+    orient_pub_ = create_publisher<geometry_msgs::msg::QuaternionStamped>("/dgps/orientation", 10);
     
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>("/rtcm", 10, std::bind(&DGPSNode::rtcmCallback, this, std::placeholders::_1));
 
@@ -89,26 +89,22 @@ void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
     dgps::GlobalCoord nmea = dgps.gps;
     dgps::Orientation attitude = dgps.orientation;
 
-    // Publish right antenna fix and heading
-    publishGPS(nmea);
-    publishHeading(attitude);
-
     // Compute left antenna position
-    double heading  = attitude.pry.z * pi / 180.0; // radians
-    double baseline = dgps.baseline;                 // meters
+    double heading  = attitude.pry.z * M_PI / 180.0; // radians
+    double baseline = dgps.orientation.baseline;                 // meters
 
-    double dx = -baseline * sin(heading);  // East offset (meters)
-    double dy =  baseline * cos(heading);  // North offset (meters)
+    double dx = -baseline_ * sin(heading);  // East offset (meters)
+    double dy =  baseline_ * cos(heading);  // North offset (meters)
 
     // Convert meter offsets to lat/lon
     constexpr double R = 6378137.0; // WGS84 Earth radius (meters)
     double dLat = dy / R; // Latitude offset (radians)
 
-    double lat_rad = nmea.latitude * pi / 180.0; // Latitude in radians (used for longitude scaling)
+    double lat_rad = nmea.latitude * M_PI / 180.0; // Latitude in radians (used for longitude scaling)
     double dLon = dx / (R * cos(lat_rad)); // Longitude offset (radians)
 
-    double left_lat = nmea.latitude  + dLat * 180.0 / pi;
-    double left_lon = nmea.longitude + dLon * 180.0 / pi;
+    double left_lat = nmea.latitude  + dLat * 180.0 / M_PI;
+    double left_lon = nmea.longitude + dLon * 180.0 / M_PI;
     double left_alt = nmea.altitude;
     
     // Create and publish left fix message

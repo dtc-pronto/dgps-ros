@@ -30,10 +30,11 @@ struct GlobalCoord
 struct Orientation
 {
     Orientation() = default;
-    Orientation(Vector3 o, Vector3 c, int s) : pry{o}, cov{c}, status{s} { }
+    Orientation(Vector3 o, Vector3 c, int s, double b) : pry{o}, cov{c}, status{s}, baseline{b} { }
     Vector3 pry;
     Vector3 cov;
     int status;
+    double baseline;
 };
 struct DiffNavSatFix
 {

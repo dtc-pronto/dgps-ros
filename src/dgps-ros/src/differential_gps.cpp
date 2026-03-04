@@ -68,7 +68,7 @@ void DifferentialGPS::read()
                 NMEA::PQTMTAR pqt = parser_.parse<NMEA::PQTMTAR>(data);
                 Vector3 vec{pqt.pitch, pqt.roll, pqt.yaw};
                 Vector3 cov{pqt.pitch_acc, pqt.roll_acc, pqt.yaw_acc};
-                orient_ = std::make_unique<Orientation>(vec, cov, pqt.quality);
+                orient_ = std::make_unique<Orientation>(vec, cov, pqt.quality, pqt.length);
                 if (attitudeCallback) attitudeCallback(*orient_);
             }
         }

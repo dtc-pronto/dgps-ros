@@ -9,7 +9,7 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/nav_sat_status.hpp>
 #include <geometry_msgs/msg/quaternion_stamped.hpp>
-#include <std_msgs/msg/float64.msg>
+#include <std_msgs/msg/float64.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <rtcm_msgs/msg/message.hpp>
 #include <dgps_msgs/msg/nav_sat_fix_with_heading.hpp>
@@ -25,7 +25,9 @@ class DGPSNode : public rclcpp::Node
         DGPSNode();
 
     private: 
-                                                 
+              
+        double baseline_;
+
         void publishGPS(dgps::GlobalCoord nmea);
         void publishHeading(dgps::Orientation attitude);
         void publishDiffGPS(dgps::DiffNavSatFix dgps);
@@ -41,7 +43,7 @@ class DGPSNode : public rclcpp::Node
        
         // orientation publishers
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_pub_;
-        rclcpp::Publisher<geoemtry_msgs::msg::QuaternionStamped>::SharedPtr orient_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr orient_pub_;
 
         rclcpp::Publisher<dgps_msgs::msg::NavSatFixWithHeading>::SharedPtr fix_heading_pub_;
         rclcpp::Publisher<dgps_msgs::msg::NavSatFixWithQuaternion>::SharedPtr fix_quat_pub_;
