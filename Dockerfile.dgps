@@ -1,0 +1,7 @@
+FROM dtcpronto/ros-jazzy:base
+
+RUN sudo apt update \
+ && sudo apt-get install -y ros-jazzy-rtcm-msgs libserial-dev
+
+RUN sudo usermod -aG dialout dtc
+RUN sudo usermod -aG tty dtc
