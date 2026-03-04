@@ -45,9 +45,10 @@ std::optional<std::string> SerialCore::read()
     return line;
 }
 
-void SerialCore::write()
+void SerialCore::write(const std::vector<uint8_t>& data)
 {
-
+    LibSerial::DataBuffer buf(data.begin(), data.end());
+    serial_.Write(buf);
 }
 
 template <typename T>

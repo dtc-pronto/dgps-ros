@@ -44,7 +44,7 @@ class DifferentialGPS
         void setGpsCallback(std::function<void(NavSatFix)> callback);
         void setAttitudeCallback(std::function<void(Vector3)> callback);
 
-        void writeRtcm();
+        void write(const std::vector<uint8_t>& data);
 
     private:
         void read();

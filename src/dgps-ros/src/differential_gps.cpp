@@ -62,7 +62,10 @@ void DifferentialGPS::read()
                 if (attitudeCallback) attitudeCallback(vec);
             }
         }
-
-        //std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
+}
+
+void DifferentialGPS::write(const std::vector<uint8_t>& data)
+{
+    serial_.write(data);
 }

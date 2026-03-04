@@ -27,7 +27,8 @@ DGPSNode::DGPSNode() : Node("dgps_node")
 
 void DGPSNode::rtcmCallback(const rtcm_msgs::msg::Message::SharedPtr msg)
 {
-
+    if (!dgps_ || msg->message.empty()) return;
+    dgps_->write(msg->message);
 }
 
 void DGPSNode::publishGPS(dgps::NavSatFix nmea)

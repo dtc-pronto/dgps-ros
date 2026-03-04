@@ -110,7 +110,7 @@ class SerialCore
         SerialCore(const std::string& dev, int baud);
 
         std::optional<std::string> read();
-        void write();
+        void write(const std::vector<uint8_t>& data);
     private:
         LibSerial::SerialPort serial_;
 };
