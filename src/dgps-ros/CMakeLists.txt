@@ -13,6 +13,9 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rtcm_msgs REQUIRED)
+find_package(dgps_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBSERIAL REQUIRED libserial)
@@ -45,6 +48,9 @@ ament_target_dependencies(dgps_node
   sensor_msgs 
   geometry_msgs 
   rtcm_msgs
+  dgps_msgs
+  std_msgs
+  tf2
 )
 target_link_libraries(dgps_node
   ${PROJECT_NAME}

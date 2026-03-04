@@ -184,22 +184,22 @@ NMEA::PQTMTAR SerialParser::parsePQTMTAR(const std::string& nmea)
     if (!f[5].empty()) length = std::stod(f[5]);
 
     double pitch = 0.0;
-    if (!f[6].empty()) pitch = std::stod(f[6]);
+    if (!f[6].empty()) pitch = std::stod(f[6]) * M_PI / 180.0;
 
     double roll = 0.0;
-    if (!f[7].empty()) roll = std::stod(f[7]);
+    if (!f[7].empty()) roll = std::stod(f[7]) * M_PI / 180.0;
 
     double yaw = 0.0;
-    if (!f[8].empty()) yaw = std::stod(f[8]);
+    if (!f[8].empty()) yaw = std::stod(f[8]) * M_PI / 180.0;
 
     double pitch_acc = 0.0;
-    if (!f[9].empty()) pitch_acc = std::stod(f[9]);
+    if (!f[9].empty()) pitch_acc = std::stod(f[9]) * M_PI / 180.0;
 
     double roll_acc = 0.0;
-    if (!f[10].empty()) roll_acc = std::stod(f[10]);
+    if (!f[10].empty()) roll_acc = std::stod(f[10]) * M_PI / 180.0;
 
     double yaw_acc = 0.0;
-    if (!f[11].empty()) yaw_acc = std::stod(f[11]);
+    if (!f[11].empty()) yaw_acc = std::stod(f[11]) * M_PI / 180.0;
 
     int sats = 0;
     if (!f[12].empty()) sats = std::stod(f[12]);

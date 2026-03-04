@@ -12,15 +12,20 @@ DGPSNode::DGPSNode() : Node("dgps_node")
     std::string dev = get_parameter("dev").as_string();
     int baud = get_parameter("baud").as_int();
 
-    fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/fix", 10);
-    heading_pub_ =create_publisher<geometry_msgs::msg::QuaternionStamped>("/dgps/heading", 10);
-   
+    right_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/right/fix", 10); // antenna 1
+    left_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/left/fix", 10); // antenna 2
+    avg_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/center/fix", 10); // antenna average
+
+    heading_pub_ = create_publisher<std_msgs::msg::Float64>("/dgps/heading", 10);
+    orient_pub_ = create_publisher<geometry_msgs::msg::Quaternion>("/dgps/orientation", 10);
+    
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>("/rtcm", 10, std::bind(&DGPSNode::rtcmCallback, this, std::placeholders::_1));
 
     dgps_ = std::make_unique<DifferentialGPS>(dev, baud);
 
-    dgps_->setGpsCallback([this](dgps::NavSatFix nmea) { this->publishGPS(nmea); });
-    dgps_->setAttitudeCallback([this](dgps::Vector3 attitude) { this->publishHeading(attitude); });
+    dgps_->setGpsCallback([this](dgps::GlobalCoord nmea) { this->publishGPS(nmea); });
+    dgps_->setAttitudeCallback([this](dgps::Orientation attitude) { this->publishHeading(attitude); });
+    dgps_->setDiffGpsCallback([this](dgps::DiffNavSatFix dnsf) { this->publishDiffGPS(dnsf); });
 
     dgps_->start();
 }
@@ -31,38 +36,51 @@ void DGPSNode::rtcmCallback(const rtcm_msgs::msg::Message::SharedPtr msg)
     dgps_->write(msg->message);
 }
 
-void DGPSNode::publishGPS(dgps::NavSatFix nmea)
+void DGPSNode::publishGPS(dgps::GlobalCoord nmea)
 {
     sensor_msgs::msg::NavSatFix msg;
     msg.header.stamp = now();
     msg.header.frame_id = "enu";
 
-    msg.latitude = nmea.gps.latitude;
-    msg.longitude = nmea.gps.longitude;
-    msg.altitude = nmea.gps.altitude;
+    msg.latitude = nmea.latitude;
+    msg.longitude = nmea.longitude;
+    msg.altitude = nmea.altitude;
 
-    msg.position_covariance[0] = nmea.variance.x;
-    msg.position_covariance[4] = nmea.variance.y;
-    msg.position_covariance[8] = nmea.variance.z;
+    msg.position_covariance[0] = nmea.covariance.x;
+    msg.position_covariance[4] = nmea.covariance.y;
+    msg.position_covariance[8] = nmea.covariance.z;
 
     msg.status.status = (nmea.status > 0) ?
             sensor_msgs::msg::NavSatStatus::STATUS_FIX :
             sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
     msg.position_covariance_type=sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
 
-    fix_pub_->publish(msg);
+    right_fix_pub_->publish(msg);
 }
 
-void DGPSNode::publishHeading(dgps::Vector3 attitude)
+void DGPSNode::publishHeading(dgps::Orientation attitude)
 {
-    geometry_msgs::msg::QuaternionStamped q;
-    q.header.stamp = now();
-    q.header.frame_id = "enu";
+    std_msgs::msg::Float64 hmsg;
+    hmsg.data = attitude.pry.z;
+    heading_pub_->publish(hmsg);
+    
+    tf2::Quaternion q;
+    geometry_msgs::msg::QuaternionStamped qmsg;
 
-    q.quaternion.x = 0.0;
-    q.quaternion.y = 0.0;
-    q.quaternion.z = std::sin(attitude.z * 0.5);
-    q.quaternion.w = std::cos(attitude.z * 0.5);
+    q.setRPY(attitude.pry.y, attitude.pry.x, attitude.pry.z);
 
-    heading_pub_->publish(q);
+    qmsg.header.stamp = now();
+    qmsg.header.frame_id = "enu";
+
+    qmsg.quaternion.x = q.x();
+    qmsg.quaternion.y = q.y();
+    qmsg.quaternion.z = q.z();
+    qmsg.quaternion.w = q.w();
+
+    orient_pub_->publish(qmsg);
+}
+
+void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
+{
+    
 }

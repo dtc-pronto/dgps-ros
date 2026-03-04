@@ -27,14 +27,19 @@ void DifferentialGPS::stop()
     }
 }
 
-void DifferentialGPS::setGpsCallback(std::function<void(NavSatFix)> callback)
+void DifferentialGPS::setGpsCallback(std::function<void(GlobalCoord)> callback)
 {
     gpsCallback = callback;
 }
 
-void DifferentialGPS::setAttitudeCallback(std::function<void(Vector3)> callback)
+void DifferentialGPS::setAttitudeCallback(std::function<void(Orientation)> callback)
 {
     attitudeCallback = callback;
+}
+
+void DifferentialGPS::setDiffGpsCallback(std::function<void(DiffNavSatFix)> callback)
+{
+    dgpsCallback = callback;
 }
 
 void DifferentialGPS::read()
@@ -45,21 +50,26 @@ void DifferentialGPS::read()
             std::string data = rdata.value();
             if (data.rfind("$GNGGA", 0) == 0) {
                 NMEA::GGA gga = parser_.parse<NMEA::GGA>(data);
-                if (cov_.x > 0) {
-                    
-                    GlobalCoord gc{gga.latitude, gga.longitude, gga.altitude};
-                    NavSatFix nsf{gc, cov_, gga.quality};
-                    if (gpsCallback) gpsCallback(nsf);
+                if (gps_cov_) { 
+                    GlobalCoord gc{gga.latitude, gga.longitude, gga.altitude, *gps_cov_, gga.quality};
+                    if (gpsCallback) gpsCallback(gc);
+                    if (orient_) {
+                        DiffNavSatFix dnsf{gc, *orient_};
+                        if (dgpsCallback) dgpsCallback(dnsf);
+                    }
                 }
             } else if (data.rfind("$GNGST", 0) == 0) {
                 NMEA::GST gst = parser_.parse<NMEA::GST>(data);
-                cov_.x = gst.lat_std*gst.lat_std;
-                cov_.y = gst.lon_std*gst.lon_std;
-                cov_.z = gst.alt_std*gst.alt_std;
+                double x = gst.lat_std*gst.lat_std;
+                double y = gst.lon_std*gst.lon_std;
+                double z = gst.alt_std*gst.alt_std;
+                gps_cov_ = std::make_unique<Vector3>(x, y, z);
             } else if (data.rfind("$PQTMTAR", 0) == 0) {
                 NMEA::PQTMTAR pqt = parser_.parse<NMEA::PQTMTAR>(data);
                 Vector3 vec{pqt.pitch, pqt.roll, pqt.yaw};
-                if (attitudeCallback) attitudeCallback(vec);
+                Vector3 cov{pqt.pitch_acc, pqt.roll_acc, pqt.yaw_acc};
+                orient_ = std::make_unique<Orientation>(vec, cov, pqt.quality);
+                if (attitudeCallback) attitudeCallback(*orient_);
             }
         }
     }

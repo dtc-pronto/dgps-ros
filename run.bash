@@ -8,7 +8,8 @@ docker run -it --rm \
     --privileged \
     -v "/dev:/dev" \
     -v "/tmp/.X11-unix:/tmp/.X11-unix" \
-    -v "./src/diff-gps:/home/dtc/ws/src/diff_gps/" \
+    -v "./src/dgps-ros:/home/dtc/ws/src/dgps-ros/" \
+    -v "./src/dgps-msgs:/home/dtc/ws/src/dgps-msgs/" \
     -e DISPLAY=$DISPLAY \
     -e QT_X11_NO_MITSHM=1 \
     -e XAUTHORITY=$XAUTH \

@@ -15,6 +15,8 @@ namespace dgps
 {
 struct Vector3
 {
+    Vector3() = default;
+    Vector3(double x, double y, double z) : x{x}, y{y}, z{z} { }
     double x{-1}, y{-1}, z{-1};
 };
 struct GlobalCoord
@@ -22,12 +24,21 @@ struct GlobalCoord
     double latitude;
     double longitude;
     double altitude;
+    Vector3 covariance;
+    int status;
 };
-struct NavSatFix
+struct Orientation
+{
+    Orientation() = default;
+    Orientation(Vector3 o, Vector3 c, int s) : pry{o}, cov{c}, status{s} { }
+    Vector3 pry;
+    Vector3 cov;
+    int status;
+};
+struct DiffNavSatFix
 {
     GlobalCoord gps;
-    Vector3 variance;
-    int status;
+    Orientation orientation; 
 };
 
 
@@ -41,8 +52,9 @@ class DifferentialGPS
         void start();
         void stop();
 
-        void setGpsCallback(std::function<void(NavSatFix)> callback);
-        void setAttitudeCallback(std::function<void(Vector3)> callback);
+        void setGpsCallback(std::function<void(GlobalCoord)> callback);
+        void setDiffGpsCallback(std::function<void(DiffNavSatFix)> callback);
+        void setAttitudeCallback(std::function<void(Orientation)> callback);
 
         void write(const std::vector<uint8_t>& data);
 
@@ -55,9 +67,11 @@ class DifferentialGPS
         std::thread read_thread_;
         std::atomic<bool> running_{false};
 
-        std::function<void(NavSatFix)> gpsCallback;
-        std::function<void(Vector3)> attitudeCallback;
+        std::function<void(GlobalCoord)> gpsCallback;
+        std::function<void(DiffNavSatFix)> dgpsCallback;
+        std::function<void(Orientation)> attitudeCallback;
 
-        Vector3 cov_;
+        std::unique_ptr<Vector3> gps_cov_;
+        std::unique_ptr<Orientation> orient_;
 };
 }
