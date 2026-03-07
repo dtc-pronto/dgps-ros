@@ -9,8 +9,10 @@ By default the dgps module is not in "differential gps" mode and will only publi
 dgps mode by...
 
 The heading is read from the module as the angle from Antenna 1 to Antenna 2.
+
 **Parallel Antenna Mounting**: If you are mounting the antennas parallel with your vehicle make sure antenna 1 is at the back of the vehicle and 
 antenna 2 is at the fron of the vehicle and make sure the `angle` parameter is set to 0. 
+
 **Perpendicular Antenna Mounting**: Many applications require the antennas to be mounted perpendicular to the front of the vehicle, if this is your
 mounting pattern, ensure that antenna 1 is the **right** antenna and antenna 2 is the **left** and that `angle` is set to -90.
 
