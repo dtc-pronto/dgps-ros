@@ -1,11 +1,18 @@
 
 #include <cmath>
+#include <filesystem>
 #include "dgps/differential_gps.hpp"
 
 using namespace dgps;
 
 DifferentialGPS::DifferentialGPS(const std::string& dev, int baud) : serial_(dev, baud)
 {
+    if (!google::IsGoogleLoggingInitialized()) {
+        google::InitGoogleLogging("dgps");
+        std::filesystem::create_directories("/tmp/dgps");
+        FLAGS_log_dir = "/tmp/dgps";
+        FLAGS_alsologtostderr = 1;
+    }
 }
 
 DifferentialGPS::~DifferentialGPS()
