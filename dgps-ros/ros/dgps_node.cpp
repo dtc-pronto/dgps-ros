@@ -25,10 +25,10 @@ DGPSNode::DGPSNode() : Node("dgps_node")
     LOG(INFO) << "[DGPS] Using Angle: " << angle_;
     LOG(INFO) << "[DGPS] Using Baseline: " << baseline_;
 
-    LOG(INFO) << "[DGPS] Publishing Antenna 1 position on: /dgps/right/fix";
-    right_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/right/fix", 10); // antenna 1
-    LOG(INFO) << "[DGPS] Publishing Antenna 2 positon on: /dgps/left/fix";
-    left_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/left/fix", 10); // antenna 2.0
+    LOG(INFO) << "[DGPS] Publishing Antenna 1 position on: /dgps/antenna1/fix";
+    right_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/antenna1/fix", 10); // antenna 1
+    LOG(INFO) << "[DGPS] Publishing Antenna 2 positon on: /dgps/antenna2/fix";
+    left_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/antenna2/fix", 10); // antenna 2.0
     LOG(INFO) << "[DGPS] Publishing Antenna Average on: /dgps/center/fix";
     avg_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/center/fix", 10); // antenna average
 
