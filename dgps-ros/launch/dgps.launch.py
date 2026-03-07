@@ -31,7 +31,7 @@ def generate_launch_description():
 
     angle_arg = DeclareLaunchArgument(
         'angle',
-        default_value="-90.0"
+        default_value="-90.0",
         description="Required rotation about z-axis to align antennas with body" 
     )
 
@@ -53,9 +53,9 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {'utm_zone': utm_zone,
-             'dev', dev,
-             'angle', angle,
-             'baseline', baseline
+             'dev': dev,
+             'angle': angle,
+             'baseline': baseline
              }
         ],
     )

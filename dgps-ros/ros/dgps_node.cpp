@@ -20,6 +20,8 @@ DGPSNode::DGPSNode() : Node("dgps_node")
     std::string utm_zone_str= get_parameter("utm_zone").as_string();
     std::strncpy(utm_zone_, utm_zone_str.c_str(), sizeof(utm_zone_));
     utm_zone_[sizeof(utm_zone_) - 1] = '\0';
+    
+    dgps_ = std::make_unique<DifferentialGPS>(dev, baud);
 
     LOG(INFO) << "[DGPS] Using UTM Zone: " << utm_zone_str;
     LOG(INFO) << "[DGPS] Using Angle: " << angle_;
@@ -41,8 +43,6 @@ DGPSNode::DGPSNode() : Node("dgps_node")
     dgps_pub_ = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/dgps/dfix", 10);
     
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>("/rtcm", 10, std::bind(&DGPSNode::rtcmCallback, this, std::placeholders::_1));
-
-    dgps_ = std::make_unique<DifferentialGPS>(dev, baud);
 
     dgps_->setGpsCallback([this](dgps::GlobalCoord nmea) { this->publishGPS(nmea); });
     dgps_->setAttitudeCallback([this](dgps::Orientation attitude) { this->publishHeading(attitude); });
