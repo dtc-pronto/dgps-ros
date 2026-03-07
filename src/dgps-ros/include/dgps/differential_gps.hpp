@@ -9,6 +9,8 @@
 #include <atomic>
 #include <thread>
 #include <functional>
+#include <glog/logging.h>
+
 #include "dgps/serial.hpp"
 
 namespace dgps

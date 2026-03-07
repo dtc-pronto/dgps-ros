@@ -11,6 +11,7 @@
 #include <optional>
 #include <iostream>
 #include <sstream>
+#include <glog/logging.h>
 
 #include <libserial/SerialPort.h>
 #include <libserial/SerialStream.h>

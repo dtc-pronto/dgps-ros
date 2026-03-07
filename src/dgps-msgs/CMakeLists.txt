@@ -21,8 +21,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 # Generate messages
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/NavSatFixWithHeading.msg"
-  "msg/NavSatFixWithQuaternion.msg"
+  "msg/DifferentialNavSatFix.msg"
   DEPENDENCIES
     std_msgs
     sensor_msgs

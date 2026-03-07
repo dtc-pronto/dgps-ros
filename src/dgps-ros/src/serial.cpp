@@ -7,7 +7,7 @@ using namespace dgps;
 
 SerialCore::SerialCore(const std::string& dev, int baud)
 {
-    std::cout << "[DGPS] [SERIAL] Opening " << dev << " at " << baud << std::endl;
+    LOG(INFO) << "[DGPS] [SERIAL] Opening " << dev << " at " << baud;
     serial_.Open(dev);
     serial_.SetBaudRate(LibSerial::BaudRate::BAUD_460800);
     serial_.SetCharacterSize(LibSerial::CharacterSize::CHAR_SIZE_8);
@@ -15,7 +15,7 @@ SerialCore::SerialCore(const std::string& dev, int baud)
     serial_.SetStopBits(LibSerial::StopBits::STOP_BITS_1);
     serial_.SetFlowControl(LibSerial::FlowControl::FLOW_CONTROL_NONE);
 
-    std::cout << "[DGPS] [SERIAL] Connected to GPS" << std::endl;
+    LOG(INFO) << "[DGPS] [SERIAL] Connected to GPS";
 }
 
 std::optional<std::string> SerialCore::read()
@@ -61,7 +61,7 @@ T SerialParser::parse(const std::string& nmea)
     } else if constexpr (std::is_same_v<T, NMEA::PQTMTAR>) {
         return parsePQTMTAR(nmea);
     } else {
-        std::cout << "[DGPS] [PARSER] Called parser with unsupported type" << std::endl;
+        LOG(FATAL) << "[DGPS] [PARSER] Called parser with unsupported type";
     };
 }
 
@@ -123,7 +123,7 @@ NMEA::GGA SerialParser::parseGGA(const std::string& nmea)
         NMEA::GGA gga(ts, lat, lon, alt, fix_quality, sats, hdop);
         return gga;
     } catch (const std::invalid_argument& e) {
-        std::cerr << "[DGPS] [SERIAL] Invalid Arg parsing GGA : " << e.what() << " for string " << nmea << std::endl; 
+        LOG(WARNING) << "[DGPS] [SERIAL] Invalid Arg parsing GGA : " << e.what() << " for string " << nmea; 
     }
     return NMEA::GGA();
 }
@@ -161,7 +161,7 @@ NMEA::GST SerialParser::parseGST(const std::string& nmea)
         NMEA::GST gst(ts, rms, major, minor, orient, lat_std, lon_std, alt_std);
         return gst;
     } catch (const std::invalid_argument& e) {
-        std::cerr << "[DGPS] [SERIAL] Invalid Arg parsing GST : " << e.what() << " for string " << nmea << std::endl; 
+        LOG(WARNING) << "[DGPS] [SERIAL] Invalid Arg parsing GST : " << e.what() << " for string " << nmea; 
     }
 
     return NMEA::GST();
