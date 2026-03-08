@@ -10,7 +10,7 @@ DGPSNode::DGPSNode() : Node("dgps_node")
     declare_parameter<std::string>("dev", "/dev/ttyACM0");
     declare_parameter<int>("baud", 460800);
     declare_parameter<double>("baseline", 0.5);
-    declare_parameter<double>("angle", -90.0);
+    declare_parameter<double>("angle", 90.0);
     declare_parameter<std::string>("utm_zone", "18S");
 
     std::string dev = get_parameter("dev").as_string();

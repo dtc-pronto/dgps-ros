@@ -86,7 +86,6 @@ void DifferentialGPS::read()
                 }
             } else if (data.rfind("$PQTMTAR", 0) == 0) {
                 NMEA::PQTMTAR pqt = parser_.parse<NMEA::PQTMTAR>(data);
-                LOG(INFO) << "[DGPS] Waiting for PQTMTAR: " << data;
 		if (pqt.yaw != 0.0) { 
                     LOG_FIRST_N(INFO, 1) << "[DGPS] PQTMTAR Reading Acquired";
                     Vector3 vec{pqt.pitch, pqt.roll, pqt.yaw};
