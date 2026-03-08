@@ -89,6 +89,8 @@ target_link_libraries(diff_gps_node
 # Install Cpp executables
 install(TARGETS
   diff_gps_node
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_ros
   ${PROJECT_NAME}_node
   DESTINATION lib/${PROJECT_NAME}
 )
