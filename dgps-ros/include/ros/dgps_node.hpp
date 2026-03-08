@@ -5,6 +5,7 @@
 * @About Handle all the ros stuff
 */
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/nav_sat_status.hpp>
@@ -23,7 +24,7 @@ namespace dgps
 class DGPSNode : public rclcpp::Node 
 {
     public:
-        DGPSNode();
+	DGPSNode(const rclcpp::NodeOptions& options);
 
     private: 
               

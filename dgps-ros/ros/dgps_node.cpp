@@ -5,7 +5,7 @@
 
 using namespace dgps;
 
-DGPSNode::DGPSNode() : Node("dgps_node") 
+DGPSNode::DGPSNode(const rclcpp::NodeOptions& options) : Node("dgps_node", options) 
 {
     declare_parameter<std::string>("dev", "/dev/ttyACM0");
     declare_parameter<int>("baud", 460800);
@@ -190,3 +190,6 @@ void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
 
     dgps_pub_->publish(dgps_msg);
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(dgps::DGPSNode)
+
