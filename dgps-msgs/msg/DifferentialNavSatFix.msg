@@ -1,3 +1,0 @@
-sensor_msgs/NavSatFix nmea
-float32 heading
-float32 heading_covariance

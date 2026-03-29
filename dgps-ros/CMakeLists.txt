@@ -14,7 +14,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rtcm_msgs REQUIRED)
-find_package(dgps_msgs REQUIRED)
+find_package(gps_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(glog REQUIRED)
 find_package(tf2 REQUIRED)
@@ -53,7 +53,7 @@ ament_target_dependencies(${PROJECT_NAME}_ros
   sensor_msgs 
   geometry_msgs 
   rtcm_msgs
-  dgps_msgs
+  gps_msgs
   std_msgs
   tf2
 )
@@ -81,6 +81,7 @@ ament_target_dependencies(diff_gps_node
   sensor_msgs 
   geometry_msgs 
   rtcm_msgs
+  gps_msgs
 )
 target_link_libraries(diff_gps_node 
   ${LIBSERIAL_LIBRARIES}

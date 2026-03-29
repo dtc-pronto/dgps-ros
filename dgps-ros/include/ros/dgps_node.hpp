@@ -13,7 +13,7 @@
 #include <std_msgs/msg/float64.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <rtcm_msgs/msg/message.hpp>
-#include <dgps_msgs/msg/differential_nav_sat_fix.hpp>
+#include <gps_msgs/msg/gps_fix.hpp>
 
 #include "dgps/differential_gps.hpp"
 #include "dgps/geodetics.hpp"
@@ -24,7 +24,7 @@ namespace dgps
 class DGPSNode : public rclcpp::Node 
 {
     public:
-	DGPSNode(const rclcpp::NodeOptions& options);
+	    DGPSNode(const rclcpp::NodeOptions& options);
 
     private: 
               
@@ -46,7 +46,7 @@ class DGPSNode : public rclcpp::Node
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr right_fix_pub_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr left_fix_pub_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr avg_fix_pub_;
-        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr dgps_pub_;  
+        rclcpp::Publisher<gps_msgs::msg::GPSFix>::SharedPtr dgps_pub_;  
 
         // orientation publishers
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_pub_;

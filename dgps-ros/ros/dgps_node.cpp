@@ -40,7 +40,7 @@ DGPSNode::DGPSNode(const rclcpp::NodeOptions& options) : Node("dgps_node", optio
     orient_pub_ = create_publisher<geometry_msgs::msg::QuaternionStamped>("/dgps/orientation", 10);
 
     LOG(INFO) << "[DGPS] Publishing Combined GPS and Heading on: /dgps/dfix";
-    dgps_pub_ = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/dgps/dfix", 10);
+    dgps_pub_ = create_publisher<gps_msgs::msg::GPSFix>("/dgps/dfix", 10);
     
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>("/rtcm", 10, std::bind(&DGPSNode::rtcmCallback, this, std::placeholders::_1));
 
@@ -171,22 +171,30 @@ void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
 
     avg_fix_pub_->publish(avg_msg);
 
-    dgps_msgs::msg::DifferentialNavSatFix dgps_msg;
+    //dgps_msgs::msg::DifferentialNavSatFix dgps_msg;
+    gps_msgs::msg::GPSFix dgps_msg;
 
-    dgps_msg.nmea.latitude = nmea.latitude;
-    dgps_msg.nmea.longitude = nmea.longitude;
-    dgps_msg.nmea.altitude = nmea.altitude;
+    dgps_msg.latitude = nmea.latitude;
+    dgps_msg.longitude = nmea.longitude;
+    dgps_msg.altitude = nmea.altitude;
      
-    dgps_msg.nmea.position_covariance.fill(0.0);
-    dgps_msg.nmea.position_covariance[0] = nmea.covariance.x;
-    dgps_msg.nmea.position_covariance[4] = nmea.covariance.y;
-    dgps_msg.nmea.position_covariance[8] = nmea.covariance.z;
+    //dgps_msg.nmea.position_covariance.fill(0.0);
+    //dgps_msg.nmea.position_covariance[0] = nmea.covariance.x;
+    //dgps_msg.nmea.position_covariance[4] = nmea.covariance.y;
+    //dgps_msg.nmea.position_covariance[8] = nmea.covariance.z;
 
-    dgps_msg.nmea.status.status = nmea.status;
-    dgps_msg.nmea.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+    dgps_msg.err = nmea.covariance.x;
+    dgps_msg.err_horz = nmea.covariance.y;
+    dgps_msg.err_vert = nmea.covariance.z;
 
-    dgps_msg.heading = static_cast<float>(heading);
-    dgps_msg.heading_covariance = static_cast<float>(attitude.cov.z);
+    //dgps_msg.nmea.status.status = nmea.status;
+    //dgps_msg.nmea.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+    dgps_msg.status.status = nmea.status;
+
+    //dgps_msg.heading = static_cast<float>(heading);
+    //dgps_msg.heading_covariance = static_cast<float>(attitude.cov.z);
+    dgps_msg.track = heading;
+    dgps_msg.err_track = attitude.cov.z;
 
     dgps_pub_->publish(dgps_msg);
 }
