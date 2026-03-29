@@ -16,6 +16,12 @@ antenna 2 is at the fron of the vehicle and make sure the `angle` parameter is s
 **Perpendicular Antenna Mounting**: Many applications require the antennas to be mounted perpendicular to the front of the vehicle, if this is your
 mounting pattern, ensure that antenna 1 is the **right** antenna and antenna 2 is the **left** and that `angle` is set to -90.
 
+## Dependencies
+You must install the following dependencies for this Driver
+``` 
+sudo apt install ros-<distro>-rtcm-msgs ros-<distro>-gps-msgs libserial-dev
+```
+
 ## Published Topics
 
 The driver publishes a few topics:
@@ -50,10 +56,10 @@ dgps_node = ComposableNode(
     plugin="dgps::DGPSNode",
     name="dgps_node",
     parameters=[{
-        'dev'=dgps_dev,
-        'zone'=utm_zone,
-        'angle'=dgps_angle,
-        'baseline'=dgps_baseline
+        'dev':dgps_dev,
+        'zone':utm_zone,
+        'angle':dgps_angle,
+        'baseline':dgps_baseline
     }]
 )
 ```
