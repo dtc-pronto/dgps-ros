@@ -62,7 +62,7 @@ void DifferentialGPS::read()
                 if (gga.latitude != 0.0 || gga.longitude != 0.0) {
                     LOG_FIRST_N(INFO, 1) << "[DGPS] Got GGA Reading with Status: " << gga.quality;
                     if (gps_cov_) { 
-                        GlobalCoord gc{gga.latitude, gga.longitude, gga.altitude, *gps_cov_, gga.quality};
+                        GlobalCoord gc{gga.timestamp, gga.latitude, gga.longitude, gga.altitude, *gps_cov_, gga.quality};
                         if (gpsCallback) gpsCallback(gc);
                         if (orient_) {
                             DiffNavSatFix dnsf{gc, *orient_};
@@ -90,7 +90,7 @@ void DifferentialGPS::read()
                     LOG_FIRST_N(INFO, 1) << "[DGPS] PQTMTAR Reading Acquired";
                     Vector3 vec{pqt.pitch, pqt.roll, pqt.yaw};
                     Vector3 cov{pqt.pitch_acc, pqt.roll_acc, pqt.yaw_acc};
-                    orient_ = std::make_unique<Orientation>(vec, cov, pqt.quality, pqt.length);
+                    orient_ = std::make_unique<Orientation>(pqt.timestamp, vec, cov, pqt.quality, pqt.length);
                     if (attitudeCallback) attitudeCallback(*orient_);
                 }
             }

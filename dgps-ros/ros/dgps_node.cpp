@@ -34,8 +34,10 @@ DGPSNode::DGPSNode(const rclcpp::NodeOptions& options) : Node("dgps_node", optio
     LOG(INFO) << "[DGPS] Publishing Antenna Average on: /dgps/center/fix";
     avg_fix_pub_ = create_publisher<sensor_msgs::msg::NavSatFix>("/dgps/center/fix", 10); // antenna average
 
-    LOG(INFO) << "[DGPS] Publishing Body-Centric Heading on ENU Frame on: /dgps/heading";
+    LOG(INFO) << "[DGPS] Publishing ENU Heading on: /dgps/heading";
     heading_pub_ = create_publisher<std_msgs::msg::Float64>("/dgps/heading", 10);
+    LOG(INFO) << "[DGPS] Publishing ENU Heading Stamped on: /dgps/heading/stamped";
+    heading_stamp_pub_ = create_publisher<geometry_msgs::msg::PointStamped>("/dgps/heading/stamped", 10);
     LOG(INFO) << "[DGPS] Publishing Attitude on: /dgps/orientation";
     orient_pub_ = create_publisher<geometry_msgs::msg::QuaternionStamped>("/dgps/orientation", 10);
 
@@ -60,8 +62,7 @@ void DGPSNode::rtcmCallback(const rtcm_msgs::msg::Message::SharedPtr msg)
 void DGPSNode::publishGPS(dgps::GlobalCoord nmea)
 {
     sensor_msgs::msg::NavSatFix msg;
-    msg.header.stamp = now();
-    msg.header.frame_id = "gps";
+    msg.header = nmeaDoubleTimeToStampTime(nmea.timestamp);
 
     msg.latitude = nmea.latitude;
     msg.longitude = nmea.longitude;
@@ -98,6 +99,10 @@ void DGPSNode::publishHeading(dgps::Orientation attitude)
     hmsg.data = transformHeading(attitude.pry.z);
     heading_pub_->publish(hmsg);
     
+    geometry_msgs::msg::PointStamped hsmsg;
+    hsmsg.header = nmeaDoubleTimeToStampTime(attitude.timestamp);
+    hsmsg.point.z = attitude.pry.z;
+
     tf2::Quaternion q;
     geometry_msgs::msg::QuaternionStamped qmsg;
 
@@ -140,7 +145,7 @@ void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
     double left_alt = nmea.altitude;
 
     sensor_msgs::msg::NavSatFix left_msg;
-    left_msg.header.stamp = now();
+    left_msg.header = nmeaDoubleTimeToStampTime(dgps.gps.timestamp);
     left_msg.header.frame_id = "gps";
 
     left_msg.latitude  = left_lat;
@@ -171,32 +176,44 @@ void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
 
     avg_fix_pub_->publish(avg_msg);
 
-    //dgps_msgs::msg::DifferentialNavSatFix dgps_msg;
     gps_msgs::msg::GPSFix dgps_msg;
 
+    dgps_msg.header = left_msg.header;
     dgps_msg.latitude = nmea.latitude;
     dgps_msg.longitude = nmea.longitude;
     dgps_msg.altitude = nmea.altitude;
      
-    //dgps_msg.nmea.position_covariance.fill(0.0);
-    //dgps_msg.nmea.position_covariance[0] = nmea.covariance.x;
-    //dgps_msg.nmea.position_covariance[4] = nmea.covariance.y;
-    //dgps_msg.nmea.position_covariance[8] = nmea.covariance.z;
-
     dgps_msg.err = nmea.covariance.x;
     dgps_msg.err_horz = nmea.covariance.y;
     dgps_msg.err_vert = nmea.covariance.z;
 
-    //dgps_msg.nmea.status.status = nmea.status;
-    //dgps_msg.nmea.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
     dgps_msg.status.status = nmea.status;
 
-    //dgps_msg.heading = static_cast<float>(heading);
-    //dgps_msg.heading_covariance = static_cast<float>(attitude.cov.z);
     dgps_msg.track = heading;
     dgps_msg.err_track = attitude.cov.z;
 
     dgps_pub_->publish(dgps_msg);
+}
+
+std_msgs::msg::Header DGPSNode::nmeaDoubleTimeToStampTime(double utc_time)
+{
+    int hh = static_cast<int>(utc_time / 10000);
+    int mm = static_cast<int>(std::fmod(utc_time, 10000) / 100);
+    double ss_frac = std::fmod(utc_time, 100);
+
+    auto now = this->now();
+    int64_t now_secs = now.seconds();
+    int64_t midnight = (now_secs / 86400) * 86400;
+
+    int32_t epoch_secs = static_cast<int32_t>(midnight)
+                       + hh * 3600 + mm * 60 + static_cast<int>(ss_frac);
+    uint32_t nanosec = static_cast<uint32_t>((ss_frac - std::floor(ss_frac)) * 1e9);
+
+    std_msgs::msg::Header header;
+    header.stamp.sec = epoch_secs;
+    header.stamp.nanosec = nanosec;
+    header.frame_id = "gps";
+    return header;
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(dgps::DGPSNode)

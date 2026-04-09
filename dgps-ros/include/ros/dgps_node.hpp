@@ -14,6 +14,9 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <rtcm_msgs/msg/message.hpp>
 #include <gps_msgs/msg/gps_fix.hpp>
+#include <std_msgs/msg/header.hpp>
+#include <builtin_interfaces/msg/time.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
 
 #include "dgps/differential_gps.hpp"
 #include "dgps/geodetics.hpp"
@@ -33,6 +36,7 @@ class DGPSNode : public rclcpp::Node
         char utm_zone_[10];
 
         double transformHeading(double heading);
+        std_msgs::msg::Header nmeaDoubleTimeToStampTime(double val);
 
         void publishGPS(dgps::GlobalCoord nmea);
         void publishHeading(dgps::Orientation attitude);
@@ -51,6 +55,7 @@ class DGPSNode : public rclcpp::Node
         // orientation publishers
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_pub_;
         rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr orient_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr heading_stamp_pub_;
 
         rclcpp::Subscription<rtcm_msgs::msg::Message>::SharedPtr rtcm_sub_;
 };

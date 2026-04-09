@@ -3,6 +3,7 @@ FROM dtcpronto/ros-jazzy:base
 RUN sudo apt update \
  && sudo apt-get install -y ros-jazzy-rtcm-msgs libserial-dev
 RUN sudo apt install -y libgoogle-glog-dev
+RUN sudo apt install -y ros-jazzy-gps-msgs
 
 RUN sudo usermod -aG dialout dtc
 RUN sudo usermod -aG tty dtc

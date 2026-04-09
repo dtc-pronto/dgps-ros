@@ -23,6 +23,7 @@ struct Vector3
 };
 struct GlobalCoord
 {
+    double timestamp;
     double latitude;
     double longitude;
     double altitude;
@@ -32,7 +33,9 @@ struct GlobalCoord
 struct Orientation
 {
     Orientation() = default;
-    Orientation(Vector3 o, Vector3 c, int s, double b) : pry{o}, cov{c}, status{s}, baseline{b} { }
+    Orientation(double t, Vector3 o, Vector3 c, int s, double b) : timestamp{t}, pry{o}, cov{c}, status{s}, baseline{b} { }
+ 
+    double timestamp;
     Vector3 pry;
     Vector3 cov;
     int status;
