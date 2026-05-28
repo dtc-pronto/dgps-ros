@@ -1,9 +1,10 @@
-/*! 
+/*!
 * @Author Ethan Sanchez, Jason Hughes
 * @Date March 2026
 *
 * @About Handle the serial connection to the dgps device
 */
+#pragma once
 
 #include <string>
 #include <vector>

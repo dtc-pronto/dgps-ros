@@ -5,11 +5,30 @@
 
 using namespace dgps;
 
+static LibSerial::BaudRate toBaudRate(int baud)
+{
+    switch (baud)
+    {
+        case 4800:   return LibSerial::BaudRate::BAUD_4800;
+        case 9600:   return LibSerial::BaudRate::BAUD_9600;
+        case 19200:  return LibSerial::BaudRate::BAUD_19200;
+        case 38400:  return LibSerial::BaudRate::BAUD_38400;
+        case 57600:  return LibSerial::BaudRate::BAUD_57600;
+        case 115200: return LibSerial::BaudRate::BAUD_115200;
+        case 230400: return LibSerial::BaudRate::BAUD_230400;
+        case 460800: return LibSerial::BaudRate::BAUD_460800;
+        case 921600: return LibSerial::BaudRate::BAUD_921600;
+        default:
+            LOG(WARNING) << "[DGPS] [SERIAL] Unsupported baud " << baud << ", defaulting to 115200";
+            return LibSerial::BaudRate::BAUD_115200;
+    }
+}
+
 SerialCore::SerialCore(const std::string& dev, int baud)
 {
     LOG(INFO) << "[DGPS] [SERIAL] Opening " << dev << " at " << baud;
     serial_.Open(dev);
-    serial_.SetBaudRate(LibSerial::BaudRate::BAUD_460800);
+    serial_.SetBaudRate(toBaudRate(baud));
     serial_.SetCharacterSize(LibSerial::CharacterSize::CHAR_SIZE_8);
     serial_.SetParity(LibSerial::Parity::PARITY_NONE);
     serial_.SetStopBits(LibSerial::StopBits::STOP_BITS_1);

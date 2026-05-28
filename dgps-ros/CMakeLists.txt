@@ -32,6 +32,7 @@ include_directories(
 add_Library(${PROJECT_NAME} SHARED
   src/serial.cpp
   src/differential_gps.cpp
+  src/septentrio.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -44,14 +45,20 @@ target_link_libraries(dgps_test
   ${PROJECT_NAME}
 )
 
+add_executable(septentrio_test test/test_septentrio.cpp)
+target_link_libraries(septentrio_test
+  ${PROJECT_NAME}
+)
+
 add_library(${PROJECT_NAME}_ros SHARED
   ros/dgps_node.cpp
+  ros/septentrio_node.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}_ros
-  rclcpp 
+  rclcpp
   rclcpp_components
-  sensor_msgs 
-  geometry_msgs 
+  sensor_msgs
+  geometry_msgs
   rtcm_msgs
   dgps_msgs
   std_msgs
@@ -61,13 +68,23 @@ target_link_libraries(${PROJECT_NAME}_ros
   ${PROJECT_NAME}
 )
 
-rclcpp_components_register_nodes(${PROJECT_NAME}_ros "dgps::DGPSNode")
+rclcpp_components_register_nodes(${PROJECT_NAME}_ros "dgps::DGPSNode" "dgps::SeptentrioNode")
 set(node_plugins "${node_plugins}dgps::DGPSNode;$<TARGET_FILE:${PROJECT_NAME}_ros>\n")
+set(node_plugins "${node_plugins}dgps::SeptentrioNode;$<TARGET_FILE:${PROJECT_NAME}_ros>\n")
 
 add_executable(${PROJECT_NAME}_node
   ros/node.cpp
 )
 target_link_libraries(${PROJECT_NAME}_node
+  rclcpp::rclcpp
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_ros
+)
+
+add_executable(septentrio_node
+  ros/septentrio_main.cpp
+)
+target_link_libraries(septentrio_node
   rclcpp::rclcpp
   ${PROJECT_NAME}
   ${PROJECT_NAME}_ros
@@ -98,6 +115,7 @@ install(TARGETS
 install(TARGETS
   diff_gps_node
   ${PROJECT_NAME}_node
+  septentrio_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -105,6 +123,12 @@ install(TARGETS
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
+)
+
+# Install helper scripts.
+install(PROGRAMS
+  tools/fake_rtcm_pub.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

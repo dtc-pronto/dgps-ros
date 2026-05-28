@@ -6,3 +6,10 @@ RUN sudo apt install -y libgoogle-glog-dev
 
 RUN sudo usermod -aG dialout dtc
 RUN sudo usermod -aG tty dtc
+
+COPY --chown=dtc:dtc dgps-msgs /home/dtc/ws/src/dgps-msgs
+COPY --chown=dtc:dtc dgps-ros  /home/dtc/ws/src/dgps-ros
+
+WORKDIR /home/dtc/ws
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash \
+ && colcon build --symlink-install"

@@ -2,9 +2,10 @@
 * @Author Jason Hughes
 * @Date March 2026
 *
-* @About Wrap the serial core and parser into a 
+* @About Wrap the serial core and parser into a
 * nice api
 */
+#pragma once
 
 #include <atomic>
 #include <thread>
