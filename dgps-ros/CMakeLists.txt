@@ -125,10 +125,4 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
-# Install helper scripts.
-install(PROGRAMS
-  tools/fake_rtcm_pub.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 ament_package()
