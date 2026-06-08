@@ -13,3 +13,6 @@ COPY --chown=dtc:dtc dgps-ros  /home/dtc/ws/src/dgps-ros
 WORKDIR /home/dtc/ws
 RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash \
  && colcon build --symlink-install"
+
+RUN printf '\n# Source ROS 2 and this workspace for interactive shells and tmux panes.\nif [ -f /opt/ros/jazzy/setup.bash ]; then\n  source /opt/ros/jazzy/setup.bash\nfi\nif [ -f /home/dtc/ws/install/setup.bash ]; then\n  source /home/dtc/ws/install/setup.bash\nfi\n' \
+  | tee -a /home/dtc/.bashrc > /dev/null

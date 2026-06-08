@@ -125,4 +125,10 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
+# Install helper scripts.
+install(PROGRAMS
+  tools/record_septentrio_bag.bash
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()
