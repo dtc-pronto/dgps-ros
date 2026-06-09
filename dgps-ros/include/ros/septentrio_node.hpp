@@ -51,6 +51,7 @@ class SeptentrioNode : public rclcpp::Node
         rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr dfix_pub_;
 
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_deg_pub_;
         rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr orient_pub_;
         rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr velocity_pub_;
 

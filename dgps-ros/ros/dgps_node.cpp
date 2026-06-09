@@ -186,6 +186,7 @@ void DGPSNode::publishDiffGPS(dgps::DiffNavSatFix dgps)
     dgps_msg.nmea.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
 
     dgps_msg.heading = static_cast<float>(heading);
+    dgps_msg.heading_deg = static_cast<float>(heading * 180.0 / M_PI);
     dgps_msg.heading_covariance = static_cast<float>(attitude.cov.z);
 
     dgps_pub_->publish(dgps_msg);

@@ -304,11 +304,14 @@ void SeptentrioGPS::read()
             if (!rbd.init || rbd.quality == 0) continue;
             LOG_FIRST_N(INFO, 1) << "[SEPT] Got RBD direction (quality " << rbd.quality << ")";
 
-            double yaw   = rbd.azimuth_deg   * M_PI / 180.0;
+            // HDT is the single source of heading (yaw); RBD only contributes
+            // pitch (elevation). Keep yaw from the last HDT solution and do NOT
+            // fire the attitude callback here, otherwise /sept/heading would
+            // alternate between the HDT and RBD values each cycle.
+            double yaw   = (orient_ ? orient_->pry.z : 0.0);
             double pitch = rbd.elevation_deg * M_PI / 180.0;
             Vector3 pry{pitch, 0.0, yaw};
             orient_ = std::make_unique<Orientation>(pry, Vector3{0.0, 0.0, 0.0}, rbd.quality, 0.0);
-            if (attitudeCallback_) attitudeCallback_(*orient_);
         }
         else if (line.rfind("$PSSN,RBP", 0) == 0)
         {

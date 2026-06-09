@@ -18,7 +18,7 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     declare_parameter<std::string>("rtcm_dev",  "/dev/ttyACM1");  // USB2; set empty to disable RTCM
     declare_parameter<int>("rtcm_baud", 115200);
     declare_parameter<double>("baseline", 0.5);
-    declare_parameter<double>("angle", 90.0);
+    declare_parameter<double>("angle", 180.0);  // 90 baseline->vehicle + 90 frame correction
     declare_parameter<std::string>("utm_zone", "18S");
 
     std::string nmea_dev = get_parameter("nmea_dev").as_string();
@@ -41,7 +41,8 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     ant2_pub_     = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/antenna2/fix", 10);
     center_pub_   = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/center/fix",   10);
     dfix_pub_     = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/dfix", 10);
-    heading_pub_  = create_publisher<std_msgs::msg::Float64>("/sept/heading", 10);
+    heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/heading", 10);
+    heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/heading_deg", 10);
     orient_pub_   = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/orientation", 10);
     velocity_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/baseline_velocity", 10);
 
@@ -97,9 +98,14 @@ void SeptentrioNode::publishGPS(GlobalCoord gc)
 
 void SeptentrioNode::publishHeading(Orientation att)
 {
+    double heading_rad = transformHeading(att.pry.z);
     std_msgs::msg::Float64 h;
-    h.data = transformHeading(att.pry.z);
+    h.data = heading_rad;
     heading_pub_->publish(h);
+
+    std_msgs::msg::Float64 h_deg;
+    h_deg.data = heading_rad * 180.0 / M_PI;
+    heading_deg_pub_->publish(h_deg);
 
     tf2::Quaternion q;
     q.setRPY(att.pry.y, att.pry.x, att.pry.z);  // (roll, pitch, yaw) — matches dgps_node ordering
@@ -206,6 +212,7 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
     dmsg.nmea.status.status = nmea.status;
     dmsg.nmea.position_covariance_type = cov_type;
     dmsg.heading = static_cast<float>(heading);
+    dmsg.heading_deg = static_cast<float>(heading * 180.0 / M_PI);
     dmsg.heading_covariance = static_cast<float>(att.cov.z);
     dfix_pub_->publish(dmsg);
 }

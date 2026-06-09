@@ -14,7 +14,9 @@ from launch_ros.actions import Node
 def generate_launch_description():
     nmea_dev_arg = DeclareLaunchArgument(
         'nmea_dev',
-        default_value='/dev/ttyACM0',
+        # Stable by-id symlink (USB1 = -if00) survives ttyACM renumbering.
+        # If you install the udev rule, use '/dev/septentrio_nmea' instead.
+        default_value='/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device_0100008040-if00',
         description='Serial device for NMEA output stream (USB1 on the mosaic-G5)'
     )
     nmea_baud_arg = DeclareLaunchArgument(
@@ -24,7 +26,9 @@ def generate_launch_description():
     )
     rtcm_dev_arg = DeclareLaunchArgument(
         'rtcm_dev',
-        default_value='/dev/ttyACM1',
+        # Stable by-id symlink (USB2 = -if02) survives ttyACM renumbering.
+        # If you install the udev rule, use '/dev/septentrio_rtcm' instead.
+        default_value='/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device_0100008040-if02',
         description='Serial device for RTCM input forwarding (USB2 on the mosaic-G5). Set empty to disable.'
     )
     rtcm_baud_arg = DeclareLaunchArgument(
@@ -39,7 +43,8 @@ def generate_launch_description():
     )
     angle_arg = DeclareLaunchArgument(
         'angle',
-        default_value='90.0',
+        # 90 (baseline->vehicle alignment) + 90 (additional frame correction) = 180.
+        default_value='180.0',
         description='Rotation [deg] about z-axis to align the antenna baseline with the vehicle forward axis'
     )
     utm_zone_arg = DeclareLaunchArgument(
