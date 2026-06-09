@@ -105,6 +105,7 @@ topics=(
   /sept/center/fix
   /sept/dfix
   /sept/heading
+  /sept/heading_deg
   /sept/orientation
   /sept/baseline_velocity
 )
