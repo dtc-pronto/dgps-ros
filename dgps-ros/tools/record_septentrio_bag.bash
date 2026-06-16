@@ -27,8 +27,8 @@ Environment overrides:
 EOF
 }
 
-nmea_dev="${NMEA_DEV:-/dev/ttyACM2}"
-rtcm_dev="${RTCM_DEV:-/dev/ttyACM3}"
+nmea_dev="${NMEA_DEV:-/dev/ttyACM1}"
+rtcm_dev="${RTCM_DEV:-/dev/ttyACM2}"
 bag_dir="${BAG_DIR:-/home/dtc/bags}"
 bag_prefix="${BAG_PREFIX:-septentrio}"
 duration="${DURATION:-}"
