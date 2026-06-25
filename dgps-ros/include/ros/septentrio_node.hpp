@@ -32,7 +32,9 @@ class SeptentrioNode : public rclcpp::Node
         double angle_;
         char utm_zone_[10];
 
-        double transformHeading(double heading);
+        // Frame-specific heading transformation helpers
+        double getHeadingNED(double raw_yaw_ned);
+        double getHeadingENU(double raw_yaw_ned);
 
         void publishGPS(GlobalCoord gc);
         void publishHeading(Orientation att);
@@ -45,15 +47,24 @@ class SeptentrioNode : public rclcpp::Node
         std::unique_ptr<SeptentrioGPS> sept_;
         std::unique_ptr<Baseline> last_baseline_;
 
+        // Invariant global coordinate publishers
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr ant1_pub_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr ant2_pub_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr center_pub_;
-        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr dfix_pub_;
 
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_pub_;
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_deg_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr orient_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr velocity_pub_;
+        // ENU Frame Localized Publishers
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr enu_heading_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr enu_heading_deg_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr enu_orient_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr enu_velocity_pub_;
+        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr enu_dfix_pub_;
+
+        // NED Frame Localized Publishers
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_deg_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr ned_orient_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr ned_velocity_pub_;
+        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr ned_dfix_pub_;
 
         rclcpp::Subscription<rtcm_msgs::msg::Message>::SharedPtr rtcm_sub_;
 };
