@@ -37,14 +37,24 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
 
     sept_ = std::make_unique<SeptentrioGPS>(nmea_dev, nmea_baud, rtcm_dev, rtcm_baud);
 
+    // Invariant Geodetic Publishers (WGS 84 LLA maps identically)
     ant1_pub_     = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/antenna1/fix", 10);
     ant2_pub_     = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/antenna2/fix", 10);
     center_pub_   = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/center/fix",   10);
-    dfix_pub_     = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/dfix", 10);
-    heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/heading", 10);
-    heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/heading_deg", 10);
-    orient_pub_   = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/orientation", 10);
-    velocity_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/baseline_velocity", 10);
+
+    // ENU Frame Publishers
+    enu_heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/enu/heading", 10);
+    enu_heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/enu/heading_deg", 10);
+    enu_orient_pub_      = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/enu/orientation", 10);
+    enu_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/enu/baseline_velocity", 10);
+    enu_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/enu/dfix", 10);
+
+    // NED Frame Publishers
+    ned_heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/ned/heading", 10);
+    ned_heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/ned/heading_deg", 10);
+    ned_orient_pub_      = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/ned/orientation", 10);
+    ned_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/ned/baseline_velocity", 10);
+    ned_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/ned/dfix", 10);
 
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>(
         "/rtcm", 10,
@@ -59,11 +69,21 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     sept_->start();
 }
 
-double SeptentrioNode::transformHeading(double heading)
+double SeptentrioNode::getHeadingNED(double raw_yaw_ned)
 {
-    double vehicle_heading = heading + angle_ * M_PI / 180.0;
-    double enu = M_PI / 2.0 - vehicle_heading;
-    double normalized = std::fmod(enu, 2.0 * M_PI);
+    // Apply vehicle offset within the NED frame (Clockwise rotation)
+    double ned_heading = raw_yaw_ned + angle_ * M_PI / 180.0;
+    double normalized = std::fmod(ned_heading, 2.0 * M_PI);
+    if (normalized < 0) normalized += 2.0 * M_PI;
+    return normalized;
+}
+
+double SeptentrioNode::getHeadingENU(double raw_yaw_ned)
+{
+    // Transform aligned NED heading into ENU space (0=East, Counter-Clockwise)
+    double ned_heading = getHeadingNED(raw_yaw_ned);
+    double enu_heading = M_PI / 2.0 - ned_heading;
+    double normalized = std::fmod(enu_heading, 2.0 * M_PI);
     if (normalized < 0) normalized += 2.0 * M_PI;
     return normalized;
 }
@@ -87,7 +107,7 @@ void SeptentrioNode::publishGPS(GlobalCoord gc)
     m.position_covariance[0] = gc.covariance.x;
     m.position_covariance[4] = gc.covariance.y;
     m.position_covariance[8] = gc.covariance.z;
-    // GST populates the covariance; before the first GST it is left at zero.
+    
     m.position_covariance_type = (gc.covariance.x > 0.0)
         ? sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN
         : sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
@@ -98,29 +118,54 @@ void SeptentrioNode::publishGPS(GlobalCoord gc)
 
 void SeptentrioNode::publishHeading(Orientation att)
 {
-    double heading_rad = transformHeading(att.pry.z);
-    std_msgs::msg::Float64 h;
-    h.data = heading_rad;
-    heading_pub_->publish(h);
+    double heading_ned = getHeadingNED(att.pry.z);
+    double heading_enu = getHeadingENU(att.pry.z);
 
-    std_msgs::msg::Float64 h_deg;
-    h_deg.data = heading_rad * 180.0 / M_PI;
-    heading_deg_pub_->publish(h_deg);
+    // 1. Publish ENU Float64 Headings
+    std_msgs::msg::Float64 enu_h, enu_h_deg;
+    enu_h.data = heading_enu;
+    enu_h_deg.data = heading_enu * 180.0 / M_PI;
+    enu_heading_pub_->publish(enu_h);
+    enu_heading_deg_pub_->publish(enu_h_deg);
 
-    tf2::Quaternion q;
-    q.setRPY(att.pry.y, att.pry.x, att.pry.z);  // (roll, pitch, yaw) — matches dgps_node ordering
-    tf2::Quaternion rot;
-    rot.setRPY(0, 0, angle_ * M_PI / 180.0);
-    tf2::Quaternion result = rot * q;
+    // 2. Publish NED Float64 Headings
+    std_msgs::msg::Float64 ned_h, ned_h_deg;
+    ned_h.data = heading_ned;
+    ned_h_deg.data = heading_ned * 180.0 / M_PI;
+    ned_heading_pub_->publish(ned_h);
+    ned_heading_deg_pub_->publish(ned_h_deg);
 
-    geometry_msgs::msg::QuaternionStamped qmsg;
-    qmsg.header.stamp = now();
-    qmsg.header.frame_id = "ned";
-    qmsg.quaternion.x = result.x();
-    qmsg.quaternion.y = result.y();
-    qmsg.quaternion.z = result.z();
-    qmsg.quaternion.w = result.w();
-    orient_pub_->publish(qmsg);
+    // 3. Publish ENU Quaternion Stamped
+    tf2::Quaternion q_enu;
+    // ENU Convention: Pitch flipped, using ENU heading
+    q_enu.setRPY(att.pry.y, -att.pry.x, heading_enu);
+    q_enu.normalize();
+
+    geometry_msgs::msg::QuaternionStamped enu_qmsg;
+    enu_qmsg.header.stamp = now();
+    enu_qmsg.header.frame_id = "base_link";
+    enu_qmsg.quaternion.x = q_enu.x();
+    enu_qmsg.quaternion.y = q_enu.y();
+    enu_qmsg.quaternion.z = q_enu.z();
+    enu_qmsg.quaternion.w = q_enu.w();
+    enu_orient_pub_->publish(enu_qmsg);
+
+    // 4. Publish NED Quaternion Stamped
+    tf2::Quaternion q_ned;
+    q_ned.setRPY(att.pry.y, att.pry.x, att.pry.z);
+    tf2::Quaternion rot_ned;
+    rot_ned.setRPY(0, 0, angle_ * M_PI / 180.0);
+    tf2::Quaternion result_ned = rot_ned * q_ned;
+    result_ned.normalize();
+
+    geometry_msgs::msg::QuaternionStamped ned_qmsg;
+    ned_qmsg.header.stamp = now();
+    ned_qmsg.header.frame_id = "ned";
+    ned_qmsg.quaternion.x = result_ned.x();
+    ned_qmsg.quaternion.y = result_ned.y();
+    ned_qmsg.quaternion.z = result_ned.z();
+    ned_qmsg.quaternion.w = result_ned.w();
+    ned_orient_pub_->publish(ned_qmsg);
 }
 
 void SeptentrioNode::publishBaseline(Baseline b)
@@ -130,16 +175,23 @@ void SeptentrioNode::publishBaseline(Baseline b)
 
 void SeptentrioNode::publishVelocity(Velocity v)
 {
-    // RBV is the rate of change of the rover->base baseline vector, NOT
-    // vehicle ground velocity. On a rigid dual-antenna mount this is driven
-    // by vehicle rotation. Published in local ENU.
-    geometry_msgs::msg::TwistStamped t;
-    t.header.stamp = now();
-    t.header.frame_id = "enu";
-    t.twist.linear.x = v.v.x;  // east
-    t.twist.linear.y = v.v.y;  // north
-    t.twist.linear.z = v.v.z;  // up
-    velocity_pub_->publish(t);
+    // ENU Frame Twist Publication
+    geometry_msgs::msg::TwistStamped t_enu;
+    t_enu.header.stamp = now();
+    t_enu.header.frame_id = "enu";
+    t_enu.twist.linear.x = v.v.x;  // East
+    t_enu.twist.linear.y = v.v.y;  // North
+    t_enu.twist.linear.z = v.v.z;  // Up
+    enu_velocity_pub_->publish(t_enu);
+
+    // NED Frame Twist Publication
+    geometry_msgs::msg::TwistStamped t_ned;
+    t_ned.header.stamp = now();
+    t_ned.header.frame_id = "ned";
+    t_ned.twist.linear.x = v.v.y;  // North
+    t_ned.twist.linear.y = v.v.x;  // East
+    t_ned.twist.linear.z = -v.v.z; // Down
+    ned_velocity_pub_->publish(t_ned);
 }
 
 void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
@@ -149,22 +201,23 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
     GlobalCoord nmea = d.gps;
     Orientation att  = d.orientation;
 
-    double heading = transformHeading(att.pry.z);
+    double heading_enu = getHeadingENU(att.pry.z);
+    double heading_ned = getHeadingNED(att.pry.z);
 
     double utm_n, utm_e;
     geodetics::LLtoUTM(nmea.latitude, nmea.longitude, utm_n, utm_e, utm_zone_);
 
-    // Prefer the measured baseline vector from RBP; fall back to baseline+heading param.
+    // Baseline translations map to a localized planar grid projection (inherently ENU)
     double dE, dN;
     if (last_baseline_ && (last_baseline_->delta.x != 0.0 || last_baseline_->delta.y != 0.0))
     {
-        dE = last_baseline_->delta.x;
-        dN = last_baseline_->delta.y;
+        dE = last_baseline_->delta.x; // East raw mapping
+        dN = last_baseline_->delta.y; // North raw mapping
     }
     else
     {
-        dE = -baseline_param_ * std::sin(heading);
-        dN =  baseline_param_ * std::cos(heading);
+        dE = -baseline_param_ * std::sin(heading_enu);
+        dN =  baseline_param_ * std::cos(heading_enu);
     }
     double ant2_e = utm_e + dE;
     double ant2_n = utm_n + dN;
@@ -201,20 +254,30 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
     center.position_covariance_type = cov_type;
     center_pub_->publish(center);
 
-    dgps_msgs::msg::DifferentialNavSatFix dmsg;
-    dmsg.nmea.latitude  = nmea.latitude;
-    dmsg.nmea.longitude = nmea.longitude;
-    dmsg.nmea.altitude  = nmea.altitude;
-    dmsg.nmea.position_covariance.fill(0.0);
-    dmsg.nmea.position_covariance[0] = nmea.covariance.x;
-    dmsg.nmea.position_covariance[4] = nmea.covariance.y;
-    dmsg.nmea.position_covariance[8] = nmea.covariance.z;
-    dmsg.nmea.status.status = nmea.status;
-    dmsg.nmea.position_covariance_type = cov_type;
-    dmsg.heading = static_cast<float>(heading);
-    dmsg.heading_deg = static_cast<float>(heading * 180.0 / M_PI);
-    dmsg.heading_covariance = static_cast<float>(att.cov.z);
-    dfix_pub_->publish(dmsg);
+    // 5. Build Base Message Variant Container
+    dgps_msgs::msg::DifferentialNavSatFix dmsg_base;
+    dmsg_base.nmea.latitude  = nmea.latitude;
+    dmsg_base.nmea.longitude = nmea.longitude;
+    dmsg_base.nmea.altitude  = nmea.altitude;
+    dmsg_base.nmea.position_covariance.fill(0.0);
+    dmsg_base.nmea.position_covariance[0] = nmea.covariance.x;
+    dmsg_base.nmea.position_covariance[4] = nmea.covariance.y;
+    dmsg_base.nmea.position_covariance[8] = nmea.covariance.z;
+    dmsg_base.nmea.status.status = nmea.status;
+    dmsg_base.nmea.position_covariance_type = cov_type;
+    dmsg_base.heading_covariance = static_cast<float>(att.cov.z);
+
+    // 6. Publish to ENU Custom Fix Topic
+    dgps_msgs::msg::DifferentialNavSatFix dmsg_enu = dmsg_base;
+    dmsg_enu.heading     = static_cast<float>(heading_enu);
+    dmsg_enu.heading_deg = static_cast<float>(heading_enu * 180.0 / M_PI);
+    enu_dfix_pub_->publish(dmsg_enu);
+
+    // 7. Publish to NED Custom Fix Topic
+    dgps_msgs::msg::DifferentialNavSatFix dmsg_ned = dmsg_base;
+    dmsg_ned.heading     = static_cast<float>(heading_ned);
+    dmsg_ned.heading_deg = static_cast<float>(heading_ned * 180.0 / M_PI);
+    ned_dfix_pub_->publish(dmsg_ned);
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(dgps::SeptentrioNode)
