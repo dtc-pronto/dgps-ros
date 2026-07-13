@@ -6,6 +6,7 @@
 */
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 #include "ros/septentrio_node.hpp"
 
@@ -118,6 +119,20 @@ void SeptentrioNode::publishGPS(GlobalCoord gc)
 
 void SeptentrioNode::publishHeading(Orientation att)
 {
+    if (!std::isfinite(att.pry.z))
+    {
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+
+        std_msgs::msg::Float64 msg;
+        msg.data = nan;
+
+        enu_heading_pub_->publish(msg);
+        enu_heading_deg_pub_->publish(msg);
+        ned_heading_pub_->publish(msg);
+        ned_heading_deg_pub_->publish(msg);
+
+        return;
+    }
     double heading_ned = getHeadingNED(att.pry.z);
     double heading_enu = getHeadingENU(att.pry.z);
 
@@ -201,8 +216,14 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
     GlobalCoord nmea = d.gps;
     Orientation att  = d.orientation;
 
-    double heading_enu = getHeadingENU(att.pry.z);
-    double heading_ned = getHeadingNED(att.pry.z);
+    double heading_enu = std::numeric_limits<double>::quiet_NaN();
+    double heading_ned = std::numeric_limits<double>::quiet_NaN();
+
+    if (std::isfinite(att.pry.z))
+    {
+        heading_enu = getHeadingENU(att.pry.z);
+        heading_ned = getHeadingNED(att.pry.z);
+    }
 
     double utm_n, utm_e;
     geodetics::LLtoUTM(nmea.latitude, nmea.longitude, utm_n, utm_e, utm_zone_);

@@ -8,6 +8,7 @@
 #include <sstream>
 #include <filesystem>
 #include <glog/logging.h>
+#include <limits>
 
 #include "dgps/septentrio.hpp"
 
@@ -289,14 +290,33 @@ void SeptentrioGPS::read()
         else if (line.compare(3, 3, "HDT") == 0)
         {
             auto hdt = SeptentrioParser::parseHDT(line);
-            if (!hdt.init) continue;  // empty heading → no attitude solution yet
+
+            // No valid heading from the receiver.
+            if (!hdt.init)
+            {
+                if (orient_)
+                {
+                    orient_->pry.z = std::numeric_limits<double>::quiet_NaN();
+                    if (attitudeCallback_)
+                        attitudeCallback_(*orient_);
+                }
+                continue;
+            }
+
             LOG_FIRST_N(INFO, 1) << "[SEPT] Got HDT heading";
 
             double yaw = hdt.heading_deg * M_PI / 180.0;
-            double pitch = (orient_ ? orient_->pry.x : 0.0);  // keep pitch from RBD if present
+            double pitch = (orient_ ? orient_->pry.x : 0.0);
+
             Vector3 pry{pitch, 0.0, yaw};
-            orient_ = std::make_unique<Orientation>(pry, Vector3{0.0, 0.0, 0.0}, 0, 0.0);
-            if (attitudeCallback_) attitudeCallback_(*orient_);
+            orient_ = std::make_unique<Orientation>(
+                pry,
+                Vector3{0.0, 0.0, 0.0},
+                0,
+                0.0);
+
+            if (attitudeCallback_)
+                attitudeCallback_(*orient_);
         }
         else if (line.rfind("$PSSN,RBD", 0) == 0)
         {
