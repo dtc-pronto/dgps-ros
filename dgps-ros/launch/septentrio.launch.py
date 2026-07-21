@@ -44,7 +44,7 @@ def generate_launch_description():
     angle_arg = DeclareLaunchArgument(
         'angle',
         # 90 (baseline->vehicle alignment) + 90 (additional frame correction) = 180.
-        default_value='180.0',
+        default_value='105.0',
         description='Rotation [deg] about z-axis to align the antenna baseline with the vehicle forward axis'
     )
     utm_zone_arg = DeclareLaunchArgument(
