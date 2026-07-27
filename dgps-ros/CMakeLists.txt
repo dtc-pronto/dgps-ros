@@ -21,17 +21,20 @@ find_package(tf2 REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBSERIAL REQUIRED libserial)
+pkg_check_modules(ZMQ REQUIRED libzmq)
 
 set(node_plugins "")
 
 include_directories(
   include
   ${LIBSERIAL_INCLUDE_DIRS}
+  ${ZMQ_INCLUDE_DIRS}
 )
 
 add_Library(${PROJECT_NAME} SHARED
   src/serial.cpp
   src/differential_gps.cpp
+  src/septentrio.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -44,14 +47,21 @@ target_link_libraries(dgps_test
   ${PROJECT_NAME}
 )
 
+add_executable(septentrio_test test/test_septentrio.cpp)
+target_link_libraries(septentrio_test
+  ${PROJECT_NAME}
+)
+
 add_library(${PROJECT_NAME}_ros SHARED
   ros/dgps_node.cpp
+  ros/septentrio_node.cpp
+  ros/rtcm_receiver_node.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}_ros
-  rclcpp 
+  rclcpp
   rclcpp_components
-  sensor_msgs 
-  geometry_msgs 
+  sensor_msgs
+  geometry_msgs
   rtcm_msgs
   dgps_msgs
   std_msgs
@@ -59,10 +69,13 @@ ament_target_dependencies(${PROJECT_NAME}_ros
 )
 target_link_libraries(${PROJECT_NAME}_ros
   ${PROJECT_NAME}
+  ${ZMQ_LIBRARIES}
 )
 
-rclcpp_components_register_nodes(${PROJECT_NAME}_ros "dgps::DGPSNode")
+rclcpp_components_register_nodes(${PROJECT_NAME}_ros "dgps::DGPSNode" "dgps::SeptentrioNode" "dgps::RtcmReceiverNode")
 set(node_plugins "${node_plugins}dgps::DGPSNode;$<TARGET_FILE:${PROJECT_NAME}_ros>\n")
+set(node_plugins "${node_plugins}dgps::SeptentrioNode;$<TARGET_FILE:${PROJECT_NAME}_ros>\n")
+set(node_plugins "${node_plugins}dgps::RtcmReceiverNode;$<TARGET_FILE:${PROJECT_NAME}_ros>\n")
 
 add_executable(${PROJECT_NAME}_node
   ros/node.cpp
@@ -70,6 +83,23 @@ add_executable(${PROJECT_NAME}_node
 target_link_libraries(${PROJECT_NAME}_node
   rclcpp::rclcpp
   ${PROJECT_NAME}
+  ${PROJECT_NAME}_ros
+)
+
+add_executable(septentrio_node
+  ros/septentrio_main.cpp
+)
+target_link_libraries(septentrio_node
+  rclcpp::rclcpp
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_ros
+)
+
+add_executable(rtcm_receiver_node
+  ros/rtcm_receiver_main.cpp
+)
+target_link_libraries(rtcm_receiver_node
+  rclcpp::rclcpp
   ${PROJECT_NAME}_ros
 )
 
@@ -98,6 +128,8 @@ install(TARGETS
 install(TARGETS
   diff_gps_node
   ${PROJECT_NAME}_node
+  septentrio_node
+  rtcm_receiver_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -105,6 +137,12 @@ install(TARGETS
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
+)
+
+# Install helper scripts.
+install(PROGRAMS
+  tools/record_septentrio_bag.bash
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

@@ -1,0 +1,21 @@
+# Septentrio mosaic-G5 — stable names for the two USB CDC-ACM ports.
+#
+#   USB1 (interface 00) = NMEA output  -> /dev/septentrio_nmea
+#   USB2 (interface 02) = RTCM input   -> /dev/septentrio_rtcm
+#
+# Matched on the USB manufacturer string + interface number, so the symlinks
+# survive ttyACM renumbering AND unit swaps (no serial number baked in).
+#
+# Install:
+#   sudo cp udev/99-septentrio.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# Verify (with the receiver plugged in):
+#   ls -l /dev/septentrio_*
+#
+# The container already sees these because run-dev.bash bind-mounts -v /dev:/dev.
+# If ENV{ID_VENDOR} does not match on your host, check the real value with:
+#   udevadm info -q property -n /dev/ttyACM0 | grep ID_VENDOR
+
+SUBSYSTEM=="tty", ENV{ID_VENDOR}=="Septentrio", ENV{ID_USB_INTERFACE_NUM}=="00", SYMLINK+="septentrio_nmea"
+SUBSYSTEM=="tty", ENV{ID_VENDOR}=="Septentrio", ENV{ID_USB_INTERFACE_NUM}=="02", SYMLINK+="septentrio_rtcm"

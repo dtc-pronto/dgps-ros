@@ -24,7 +24,7 @@ namespace dgps
 class DGPSNode : public rclcpp::Node 
 {
     public:
-	DGPSNode(const rclcpp::NodeOptions& options);
+        DGPSNode(const rclcpp::NodeOptions& options);
 
     private: 
               
@@ -32,7 +32,9 @@ class DGPSNode : public rclcpp::Node
         double angle_;
         char utm_zone_[10];
 
-        double transformHeading(double heading);
+        // Coordinate-specific heading transformation helpers
+        double getHeadingNED(double raw_yaw_ned);
+        double getHeadingENU(double raw_yaw_ned);
 
         void publishGPS(dgps::GlobalCoord nmea);
         void publishHeading(dgps::Orientation attitude);
@@ -42,16 +44,21 @@ class DGPSNode : public rclcpp::Node
 
         std::unique_ptr<DifferentialGPS> dgps_;
 
-        // fix publishers
+        // Baseline global position fix publishers
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr right_fix_pub_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr left_fix_pub_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr avg_fix_pub_;
-        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr dgps_pub_;  
 
-        // orientation publishers
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr orient_pub_;
+        // ENU Frame publishers
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr enu_heading_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr enu_orient_pub_;
+        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr enu_dgps_pub_;  
+
+        // NED Frame publishers
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr ned_orient_pub_;
+        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr ned_dgps_pub_;  
 
         rclcpp::Subscription<rtcm_msgs::msg::Message>::SharedPtr rtcm_sub_;
 };
-}
+} // namespace dgps

@@ -1,0 +1,31 @@
+# mosaic-G5 — USB-only configuration (1 Hz)
+#
+# NMEA output  : USB1  (host reads it at /dev/ttyACM0)
+# RTCM input   : USB2  (host writes corrections at /dev/ttyACM1)
+# COM1 / COM2  : left unconfigured on purpose — see note below.
+#
+#   On the ArduSimple SimpleRTK board the mosaic-G5's COM1/COM2 are physical
+#   UARTs broken out to board headers and are not carried over the USB cable. Per
+#   ArduSimple's guide, COM2 is wired to the XBee socket — meant for a plug-in
+#   radio module that would receive base-station corrections over the air —
+#   and COM1 is the other UART header. Neither enumerates on the host (ie
+#   there is no /dev/ttyUSB*), so the PC cannot read or write them without an
+#   external USB-to-UART adapter. This setup delivers everything over USB
+#   instead — NMEA out on USB1, RTCM corrections in on USB2 from an NTRIP/ROS
+#   source — so the COM ports are simply not used. Configure them only if you
+#   physically attach a device (e.g. an XBee/telemetry radio) to those headers.
+#
+# Apply in RxControl: Tools > Send Commands (or load as a command script),
+# then save to boot config to make it persist across power cycles
+# (RxControl: "Copy current config to boot", or send:  exeCopyConfigFile, Current, Boot)
+
+# --- NMEA output: USB1 only, full message set, 1 Hz ---
+setNMEAOutput, Stream1, USB1
+setNMEAOutput, Stream1, , GGA+GLL+GSA+GST+GSV+HDT+RMC+VTG+RBP+RBV+RBD
+setNMEAOutput, Stream1, , , sec1
+
+# --- Signal tracking ---
+setSignalTracking, GPSL1CA+GPSL2PY+GPSL2C+GPSL5+GLOL1CA+GLOL2CA+GALL1BC+GALE5a+GALE5b+GEOL1+BDSB1I+BDSB2I+BDSB3I+QZSL1CA+QZSL2C+NAVICL5
+
+# --- RTCM corrections input on USB2 (auto = accept RTCM + still allow commands) ---
+setDataInOut, USB2, auto
