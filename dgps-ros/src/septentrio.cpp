@@ -270,11 +270,28 @@ void SeptentrioGPS::read()
 
             Vector3 cov = gps_cov_ ? *gps_cov_ : Vector3{0.0, 0.0, 0.0};
             GlobalCoord gc{gga.latitude, gga.longitude, gga.altitude, cov, gga.quality};
-            if (gpsCallback_) gpsCallback_(gc);
+            if (gpsCallback_)
+                gpsCallback_(gc);
 
-            if (orient_ && dgpsCallback_)
+            if (dgpsCallback_)
             {
-                DiffNavSatFix d{gc, *orient_};
+                DiffNavSatFix d;
+                d.gps = gc;
+
+                if (orient_)
+                {
+                    d.orientation = *orient_;
+                }
+                else
+                {
+                    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+                    d.orientation.pry = Vector3{nan, nan, nan};
+                    d.orientation.cov = Vector3{nan, nan, nan};
+                    d.orientation.status = 0;
+                    d.orientation.covariance = nan;
+                }
+
                 dgpsCallback_(d);
             }
         }

@@ -230,15 +230,21 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
 
     // Baseline translations map to a localized planar grid projection (inherently ENU)
     double dE, dN;
-    if (last_baseline_ && (last_baseline_->delta.x != 0.0 || last_baseline_->delta.y != 0.0))
+    if (last_baseline_ &&
+    (last_baseline_->delta.x != 0.0 || last_baseline_->delta.y != 0.0))
     {
-        dE = last_baseline_->delta.x; // East raw mapping
-        dN = last_baseline_->delta.y; // North raw mapping
+        dE = last_baseline_->delta.x;
+        dN = last_baseline_->delta.y;
     }
-    else
+    else if (std::isfinite(heading_enu))
     {
         dE = -baseline_param_ * std::sin(heading_enu);
         dN =  baseline_param_ * std::cos(heading_enu);
+    }
+    else
+    {
+        dE = 0.0;
+        dN = 0.0;
     }
     double ant2_e = utm_e + dE;
     double ant2_n = utm_n + dN;
