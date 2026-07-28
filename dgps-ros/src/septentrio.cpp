@@ -289,7 +289,7 @@ void SeptentrioGPS::read()
                     d.orientation.pry = Vector3{nan, nan, nan};
                     d.orientation.cov = Vector3{nan, nan, nan};
                     d.orientation.status = 0;
-                    d.orientation.covariance = nan;
+                    d.orientation.baseline = nan;
                 }
 
                 dgpsCallback_(d);
