@@ -273,8 +273,14 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
 
     sensor_msgs::msg::NavSatFix center;
     center.header = ant2.header;
-    center.latitude  = (ant2_lat + nmea.latitude)  * 0.5;
-    center.longitude = (ant2_lon + nmea.longitude) * 0.5;
+
+    double center_e = 0.5 * (utm_e + ant2_e);
+    double center_n = 0.5 * (utm_n + ant2_n);
+    double center_lat, center_lon;
+    geodetics::UTMtoLL(center_n, center_e, utm_zone_, center_lat, center_lon);
+
+    center.latitude  = center_lat;
+    center.longitude = center_lon;
     center.altitude  = nmea.altitude;
     center.position_covariance = ant2.position_covariance;
     center.status = ant2.status;
