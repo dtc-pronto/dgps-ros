@@ -18,7 +18,6 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     declare_parameter<int>("nmea_baud", 115200);
     declare_parameter<std::string>("rtcm_dev",  "/dev/ttyACM1");  // USB2; set empty to disable RTCM
     declare_parameter<int>("rtcm_baud", 115200);
-    declare_parameter<double>("baseline", 0.5);
     declare_parameter<double>("angle", 180.0);  // 90 baseline->vehicle + 90 frame correction
     declare_parameter<std::string>("utm_zone", "18S");
 
@@ -26,7 +25,6 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     int nmea_baud        = get_parameter("nmea_baud").as_int();
     std::string rtcm_dev = get_parameter("rtcm_dev").as_string();
     int rtcm_baud        = get_parameter("rtcm_baud").as_int();
-    baseline_param_      = get_parameter("baseline").as_double();
     angle_               = get_parameter("angle").as_double();
     std::string utm      = get_parameter("utm_zone").as_string();
     std::strncpy(utm_zone_, utm.c_str(), sizeof(utm_zone_));
@@ -34,27 +32,22 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
 
     LOG(INFO) << "[SEPT] NMEA on " << nmea_dev << " @ " << nmea_baud;
     LOG(INFO) << "[SEPT] RTCM on " << (rtcm_dev.empty() ? "<disabled>" : rtcm_dev) << " @ " << rtcm_baud;
-    LOG(INFO) << "[SEPT] UTM zone " << utm << "  baseline=" << baseline_param_ << "m  angle=" << angle_ << "deg";
 
     sept_ = std::make_unique<SeptentrioGPS>(nmea_dev, nmea_baud, rtcm_dev, rtcm_baud);
 
     // Invariant Geodetic Publishers (WGS 84 LLA maps identically)
     ant1_pub_     = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/antenna1/fix", 10);
-    ant2_pub_     = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/antenna2/fix", 10);
-    center_pub_   = create_publisher<sensor_msgs::msg::NavSatFix>("/sept/center/fix",   10);
 
     // ENU Frame Publishers
     enu_heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/enu/heading", 10);
     enu_heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/enu/heading_deg", 10);
     enu_orient_pub_      = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/enu/orientation", 10);
-    enu_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/enu/baseline_velocity", 10);
     enu_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/enu/dfix", 10);
 
     // NED Frame Publishers
     ned_heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/ned/heading", 10);
     ned_heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/ned/heading_deg", 10);
     ned_orient_pub_      = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/ned/orientation", 10);
-    ned_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/ned/baseline_velocity", 10);
     ned_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/ned/dfix", 10);
 
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>(
@@ -63,8 +56,6 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
 
     sept_->setGpsCallback     ([this](GlobalCoord gc)   { publishGPS(gc); });
     sept_->setAttitudeCallback([this](Orientation a)    { publishHeading(a); });
-    sept_->setBaselineCallback([this](Baseline b)       { publishBaseline(b); });
-    sept_->setVelocityCallback([this](Velocity v)       { publishVelocity(v); });
     sept_->setDiffGpsCallback ([this](DiffNavSatFix d)  { publishDiffGPS(d); });
 
     sept_->start();
@@ -183,32 +174,6 @@ void SeptentrioNode::publishHeading(Orientation att)
     ned_orient_pub_->publish(ned_qmsg);
 }
 
-void SeptentrioNode::publishBaseline(Baseline b)
-{
-    last_baseline_ = std::make_unique<Baseline>(b);
-}
-
-void SeptentrioNode::publishVelocity(Velocity v)
-{
-    // ENU Frame Twist Publication
-    geometry_msgs::msg::TwistStamped t_enu;
-    t_enu.header.stamp = now();
-    t_enu.header.frame_id = "enu";
-    t_enu.twist.linear.x = v.v.x;  // East
-    t_enu.twist.linear.y = v.v.y;  // North
-    t_enu.twist.linear.z = v.v.z;  // Up
-    enu_velocity_pub_->publish(t_enu);
-
-    // NED Frame Twist Publication
-    geometry_msgs::msg::TwistStamped t_ned;
-    t_ned.header.stamp = now();
-    t_ned.header.frame_id = "ned";
-    t_ned.twist.linear.x = v.v.y;  // North
-    t_ned.twist.linear.y = v.v.x;  // East
-    t_ned.twist.linear.z = -v.v.z; // Down
-    ned_velocity_pub_->publish(t_ned);
-}
-
 void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
 {
     LOG_FIRST_N(INFO, 1) << "[SEPT] Publishing combined fix + heading";
@@ -225,69 +190,12 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
         heading_ned = getHeadingNED(att.pry.z);
     }
 
-    double utm_n, utm_e;
-    geodetics::LLtoUTM(nmea.latitude, nmea.longitude, utm_n, utm_e, utm_zone_);
-
-    // Baseline translations map to a localized planar grid projection (inherently ENU)
-    double dE, dN;
-    if (last_baseline_ &&
-    (last_baseline_->delta.x != 0.0 || last_baseline_->delta.y != 0.0))
-    {
-        dE = last_baseline_->delta.x;
-        dN = last_baseline_->delta.y;
-    }
-    else if (std::isfinite(heading_enu))
-    {
-        dE = -baseline_param_ * std::sin(heading_enu);
-        dN =  baseline_param_ * std::cos(heading_enu);
-    }
-    else
-    {
-        dE = 0.0;
-        dN = 0.0;
-    }
-    double ant2_e = utm_e + dE;
-    double ant2_n = utm_n + dN;
-
-    double ant2_lat, ant2_lon;
-    geodetics::UTMtoLL(ant2_n, ant2_e, utm_zone_, ant2_lat, ant2_lon);
-
     const bool cov_known = nmea.covariance.x > 0.0;
     const auto cov_type = cov_known
         ? sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN
         : sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
 
-    sensor_msgs::msg::NavSatFix ant2;
-    ant2.header.stamp = now();
-    ant2.header.frame_id = "gps";
-    ant2.latitude  = ant2_lat;
-    ant2.longitude = ant2_lon;
-    ant2.altitude  = nmea.altitude;
-    ant2.position_covariance.fill(0.0);
-    ant2.position_covariance[0] = nmea.covariance.x;
-    ant2.position_covariance[4] = nmea.covariance.y;
-    ant2.position_covariance[8] = nmea.covariance.z;
-    ant2.status.status = nmea.status;
-    ant2.position_covariance_type = cov_type;
-    ant2_pub_->publish(ant2);
-
-    sensor_msgs::msg::NavSatFix center;
-    center.header = ant2.header;
-
-    double center_e = 0.5 * (utm_e + ant2_e);
-    double center_n = 0.5 * (utm_n + ant2_n);
-    double center_lat, center_lon;
-    geodetics::UTMtoLL(center_n, center_e, utm_zone_, center_lat, center_lon);
-
-    center.latitude  = center_lat;
-    center.longitude = center_lon;
-    center.altitude  = nmea.altitude;
-    center.position_covariance = ant2.position_covariance;
-    center.status = ant2.status;
-    center.position_covariance_type = cov_type;
-    center_pub_->publish(center);
-
-    // 5. Build Base Message Variant Container
+    // 1. Build Base Message Variant Container
     dgps_msgs::msg::DifferentialNavSatFix dmsg_base;
     dmsg_base.nmea.latitude  = nmea.latitude;
     dmsg_base.nmea.longitude = nmea.longitude;
@@ -300,13 +208,13 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
     dmsg_base.nmea.position_covariance_type = cov_type;
     dmsg_base.heading_covariance = static_cast<float>(att.cov.z);
 
-    // 6. Publish to ENU Custom Fix Topic
+    // 2. Publish to ENU Custom Fix Topic
     dgps_msgs::msg::DifferentialNavSatFix dmsg_enu = dmsg_base;
     dmsg_enu.heading     = static_cast<float>(heading_enu);
     dmsg_enu.heading_deg = static_cast<float>(heading_enu * 180.0 / M_PI);
     enu_dfix_pub_->publish(dmsg_enu);
 
-    // 7. Publish to NED Custom Fix Topic
+    // 3. Publish to NED Custom Fix Topic
     dgps_msgs::msg::DifferentialNavSatFix dmsg_ned = dmsg_base;
     dmsg_ned.heading     = static_cast<float>(heading_ned);
     dmsg_ned.heading_deg = static_cast<float>(heading_ned * 180.0 / M_PI);

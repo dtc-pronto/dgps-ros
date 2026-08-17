@@ -84,55 +84,7 @@ struct RBD
     bool init{false};
 };
 
-// $PSSN,RBP — Rover-Base Position  (Ref. Guide C.1.3)
-// $PSSN,RBP,hhmmss.ss,ddmmyy,north,east,up,sats,quality,base_motion,corr_age,serial,base_id*cs
-struct RBP
-{
-    double timestamp{0.0};
-    double north{0.0};   // baseline N component, +ve when base is N of rover [m]
-    double east{0.0};    // baseline E component [m]
-    double up{0.0};      // baseline U component [m]
-    int satellites{0};
-    int quality{0};
-    int base_motion{0};
-    double correction_age{0.0};
-    bool init{false};
-};
-
-// $PSSN,RBV — Rover-Base Velocity  (Ref. Guide C.1.4)
-// $PSSN,RBV,hhmmss.ss,ddmmyy,vnorth,veast,vup,sats,quality,base_motion,corr_age,serial,base_id*cs
-struct RBV
-{
-    double timestamp{0.0};
-    double vel_north{0.0};   // rate of change of baseline vector, N component [m/s]
-    double vel_east{0.0};
-    double vel_up{0.0};
-    int satellites{0};
-    int quality{0};
-    int base_motion{0};
-    double correction_age{0.0};
-    bool init{false};
-};
-
-} // namespace SeptNMEA
-
-// Baseline vector from rover antenna to base (aux) antenna, in local ENU.
-struct Baseline
-{
-    Vector3 delta;          // x=East, y=North, z=Up [m]  (rover -> base)
-    double length{0.0};     // |delta| [m]
-    double azimuth{0.0};    // [rad, NED 0=N] heading of the baseline
-    double elevation{0.0};  // [rad]
-    int quality{0};
-    bool init{false};
-};
-
-// Rate of change of the baseline vector, local ENU.
-struct Velocity
-{
-    Vector3 v;              // x=East, y=North, z=Up [m/s]
-    int quality{0};
-};
+}
 
 class SeptentrioParser
 {
@@ -142,8 +94,6 @@ class SeptentrioParser
         static SeptNMEA::GST parseGST(const std::string& line);
         static SeptNMEA::HDT parseHDT(const std::string& line);
         static SeptNMEA::RBD parseRBD(const std::string& line);
-        static SeptNMEA::RBP parseRBP(const std::string& line);
-        static SeptNMEA::RBV parseRBV(const std::string& line);
 
     private:
         static std::vector<std::string> split(const std::string& s, char delim);
@@ -168,7 +118,6 @@ class SeptentrioGPS
         void setGpsCallback(std::function<void(GlobalCoord)> cb);
         void setAttitudeCallback(std::function<void(Orientation)> cb);
         void setBaselineCallback(std::function<void(Baseline)> cb);
-        void setVelocityCallback(std::function<void(Velocity)> cb);
         void setDiffGpsCallback(std::function<void(DiffNavSatFix)> cb);
 
         void write(const std::vector<uint8_t>& data);  // RTCM out → rtcm port
@@ -184,8 +133,6 @@ class SeptentrioGPS
 
         std::function<void(GlobalCoord)>  gpsCallback_;
         std::function<void(Orientation)>  attitudeCallback_;
-        std::function<void(Baseline)>     baselineCallback_;
-        std::function<void(Velocity)>     velocityCallback_;
         std::function<void(DiffNavSatFix)> dgpsCallback_;
 
         std::unique_ptr<Vector3>     gps_cov_;   // from GST [m^2]
