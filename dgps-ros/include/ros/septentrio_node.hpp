@@ -31,6 +31,7 @@ class SeptentrioNode : public rclcpp::Node
         double baseline_param_;
         double angle_;
         char utm_zone_[10];
+        bool baseline_received_since_last_gga_ = false;
 
         // Frame-specific heading transformation helpers
         double getHeadingNED(double raw_yaw_ned);
