@@ -15,7 +15,7 @@
 #include <std_msgs/msg/float64.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <rtcm_msgs/msg/message.hpp>
-#include <dgps_msgs/msg/differential_nav_sat_fix.hpp>
+#include <gps_msgs/msg/gps_fix.hpp>
 
 #include "dgps/septentrio.hpp"
 #include "dgps/geodetics.hpp"
@@ -58,14 +58,14 @@ class SeptentrioNode : public rclcpp::Node
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr enu_heading_deg_pub_;
         rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr enu_orient_pub_;
         rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr enu_velocity_pub_;
-        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr enu_dfix_pub_;
+        rclcpp::Publisher<gps_msgs::msg::GPSFix>::SharedPtr enu_dfix_pub_;
 
         // NED Frame Localized Publishers
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_deg_pub_;
         rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr ned_orient_pub_;
         rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr ned_velocity_pub_;
-        rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr ned_dfix_pub_;
+        rclcpp::Publisher<gps_msgs::msg::GPSFix>::SharedPtr ned_dfix_pub_;
 
         rclcpp::Subscription<rtcm_msgs::msg::Message>::SharedPtr rtcm_sub_;
 };

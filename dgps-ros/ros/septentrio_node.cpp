@@ -52,14 +52,14 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     enu_heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/enu/heading_deg", 10);
     enu_orient_pub_      = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/enu/orientation", 10);
     enu_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/enu/baseline_velocity", 10);
-    enu_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/enu/dfix", 10);
+    enu_dfix_pub_        = create_publisher<gps_msgs::msg::GPSFix>("/sept/enu/dfix", 10);
 
     // NED Frame Publishers
     ned_heading_pub_     = create_publisher<std_msgs::msg::Float64>("/sept/ned/heading", 10);
     ned_heading_deg_pub_ = create_publisher<std_msgs::msg::Float64>("/sept/ned/heading_deg", 10);
     ned_orient_pub_      = create_publisher<geometry_msgs::msg::QuaternionStamped>("/sept/ned/orientation", 10);
     ned_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/ned/baseline_velocity", 10);
-    ned_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/ned/dfix", 10);
+    ned_dfix_pub_        = create_publisher<gps_msgs::msg::GPSFix>("/sept/ned/dfix", 10);
 
     // Subscribe to RTCM messages for differential corrections
     rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>("/rtcm", 10, std::bind(&SeptentrioNode::rtcmCallback, this, std::placeholders::_1));
@@ -331,36 +331,35 @@ void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
     center_pub_->publish(center);
 
     // 8. Build base differential GPS message
-    dgps_msgs::msg::DifferentialNavSatFix dmsg_base;
+    gps_msgs::msg::GPSFix dmsg_base;
 
-    dmsg_base.nmea.latitude  = nmea.latitude;
-    dmsg_base.nmea.longitude = nmea.longitude;
-    dmsg_base.nmea.altitude  = nmea.altitude;
+    dmsg_base.latitude  = nmea.latitude;
+    dmsg_base.longitude = nmea.longitude;
+    dmsg_base.altitude  = nmea.altitude;
 
-    dmsg_base.nmea.position_covariance.fill(0.0);
-    dmsg_base.nmea.position_covariance[0] = nmea.covariance.x;
-    dmsg_base.nmea.position_covariance[4] = nmea.covariance.y;
-    dmsg_base.nmea.position_covariance[8] = nmea.covariance.z;
+    dmsg_base.position_covariance[0] = nmea.covariance.x;
+    dmsg_base.position_covariance[4] = nmea.covariance.y;
+    dmsg_base.position_covariance[8] = nmea.covariance.z;
 
-    dmsg_base.nmea.status.status = nmea.status;
-    dmsg_base.nmea.position_covariance_type = cov_type;
-    dmsg_base.heading_covariance = static_cast<float>(att.cov.z);
+    //dmsg_base.nmea.status.status = nmea.status;
+    dmsg_base.position_covariance_type = cov_type;
+    dmsg_base.err_track = static_cast<float>(att.cov.z);
 
     // 9. Publish ENU differential fix
-    dgps_msgs::msg::DifferentialNavSatFix dmsg_enu = dmsg_base;
+    gps_msgs::msg::GPSFix dmsg_enu = dmsg_base;
 
-    dmsg_enu.heading = static_cast<float>(heading_enu);
+    dmsg_enu.track = static_cast<float>(heading_enu);
 
-    dmsg_enu.heading_deg = static_cast<float>(heading_enu * 180.0 / M_PI);
+    dmsg_enu.tdop = static_cast<float>(heading_enu * 180.0 / M_PI);
 
     enu_dfix_pub_->publish(dmsg_enu);
 
     // 10. Publish NED differential fix
-    dgps_msgs::msg::DifferentialNavSatFix dmsg_ned = dmsg_base;
+    gps_msgs::msg::GPSFix dmsg_ned = dmsg_base;
 
-    dmsg_ned.heading = static_cast<float>(heading_ned);
+    dmsg_ned.track = static_cast<float>(heading_ned);
 
-    dmsg_ned.heading_deg = static_cast<float>(heading_ned * 180.0 / M_PI);
+    dmsg_ned.tdop = static_cast<float>(heading_ned * 180.0 / M_PI);
 
     ned_dfix_pub_->publish(dmsg_ned);
 

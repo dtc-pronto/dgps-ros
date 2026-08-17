@@ -16,6 +16,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(rtcm_msgs REQUIRED)
 find_package(dgps_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(gps_msgs REQUIRED)
 find_package(glog REQUIRED)
 find_package(tf2 REQUIRED)
 
@@ -65,6 +66,7 @@ ament_target_dependencies(${PROJECT_NAME}_ros
   rtcm_msgs
   dgps_msgs
   std_msgs
+  gps_msgs
   tf2
 )
 target_link_libraries(${PROJECT_NAME}_ros
