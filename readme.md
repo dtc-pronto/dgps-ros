@@ -26,17 +26,13 @@ The heading is reported directly by the receiver as the azimuth from antenna 1 t
 ### Published Topics
 
  - `/sept/antenna1/fix` — `NavSatFix`: position of antenna 1 as reported by the receiver.
- - `/sept/antenna2/fix` — `NavSatFix`: position of antenna 2, computed from heading and baseline.
- - `/sept/center/fix` — `NavSatFix`: average position of both antennas.
  - `/sept/enu/heading` — `Float64`: vehicle heading in the ENU frame (radians).
  - `/sept/enu/heading_deg` — `Float64`: vehicle heading in the ENU frame (degrees).
  - `/sept/enu/orientation` — `QuaternionStamped`: full attitude in the ENU frame (`base_link`).
- - `/sept/enu/baseline_velocity` — `TwistStamped`: baseline velocity in the ENU frame (East, North, Up).
  - `/sept/enu/dfix` — `DifferentialNavSatFix`: antenna 1 position plus ENU heading.
  - `/sept/ned/heading` — `Float64`: vehicle heading in the NED frame (radians).
  - `/sept/ned/heading_deg` — `Float64`: vehicle heading in the NED frame (degrees).
  - `/sept/ned/orientation` — `QuaternionStamped`: full attitude in the NED frame.
- - `/sept/ned/baseline_velocity` — `TwistStamped`: baseline velocity in the NED frame (North, East, Down).
  - `/sept/ned/dfix` — `DifferentialNavSatFix`: antenna 1 position plus NED heading.
 
 ### Subscribed Topics
