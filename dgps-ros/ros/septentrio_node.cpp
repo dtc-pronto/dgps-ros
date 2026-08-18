@@ -14,14 +14,16 @@ using namespace dgps;
 
 SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septentrio_node", options)
 {
+    // Declare parameters with default values
     declare_parameter<std::string>("nmea_dev",  "/dev/ttyACM0");  // USB1
     declare_parameter<int>("nmea_baud", 115200);
     declare_parameter<std::string>("rtcm_dev",  "/dev/ttyACM1");  // USB2; set empty to disable RTCM
     declare_parameter<int>("rtcm_baud", 115200);
-    declare_parameter<double>("baseline", 0.5);
-    declare_parameter<double>("angle", 180.0);  // 90 baseline->vehicle + 90 frame correction
+    declare_parameter<double>("baseline", 0.5); // baseline length in meters
+    declare_parameter<double>("angle", 90.0);  // angle offset of the baseline from the forward direction of the vehicle (degrees)
     declare_parameter<std::string>("utm_zone", "18S");
 
+    // Save parameters to member variables
     std::string nmea_dev = get_parameter("nmea_dev").as_string();
     int nmea_baud        = get_parameter("nmea_baud").as_int();
     std::string rtcm_dev = get_parameter("rtcm_dev").as_string();
@@ -32,10 +34,12 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     std::strncpy(utm_zone_, utm.c_str(), sizeof(utm_zone_));
     utm_zone_[sizeof(utm_zone_) - 1] = '\0';
 
+    // Log the configuration (debug)
     LOG(INFO) << "[SEPT] NMEA on " << nmea_dev << " @ " << nmea_baud;
     LOG(INFO) << "[SEPT] RTCM on " << (rtcm_dev.empty() ? "<disabled>" : rtcm_dev) << " @ " << rtcm_baud;
     LOG(INFO) << "[SEPT] UTM zone " << utm << "  baseline=" << baseline_param_ << "m  angle=" << angle_ << "deg";
 
+    // Initialize the SeptentrioGPS object
     sept_ = std::make_unique<SeptentrioGPS>(nmea_dev, nmea_baud, rtcm_dev, rtcm_baud);
 
     // Invariant Geodetic Publishers (WGS 84 LLA maps identically)
@@ -57,16 +61,17 @@ SeptentrioNode::SeptentrioNode(const rclcpp::NodeOptions& options) : Node("septe
     ned_velocity_pub_    = create_publisher<geometry_msgs::msg::TwistStamped>("/sept/ned/baseline_velocity", 10);
     ned_dfix_pub_        = create_publisher<dgps_msgs::msg::DifferentialNavSatFix>("/sept/ned/dfix", 10);
 
-    rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>(
-        "/rtcm", 10,
-        std::bind(&SeptentrioNode::rtcmCallback, this, std::placeholders::_1));
+    // Subscribe to RTCM messages for differential corrections
+    rtcm_sub_ = create_subscription<rtcm_msgs::msg::Message>("/rtcm", 10, std::bind(&SeptentrioNode::rtcmCallback, this, std::placeholders::_1));
 
+    // Set up callbacks for GPS data
     sept_->setGpsCallback     ([this](GlobalCoord gc)   { publishGPS(gc); });
     sept_->setAttitudeCallback([this](Orientation a)    { publishHeading(a); });
     sept_->setBaselineCallback([this](Baseline b)       { publishBaseline(b); });
     sept_->setVelocityCallback([this](Velocity v)       { publishVelocity(v); });
     sept_->setDiffGpsCallback ([this](DiffNavSatFix d)  { publishDiffGPS(d); });
 
+    // Start the SeptentrioGPS processing
     sept_->start();
 }
 
@@ -91,34 +96,44 @@ double SeptentrioNode::getHeadingENU(double raw_yaw_ned)
 
 void SeptentrioNode::rtcmCallback(const rtcm_msgs::msg::Message::SharedPtr msg)
 {
+    // Forward RTCM message to the SeptentrioGPS object
     if (!sept_ || msg->message.empty()) return;
     sept_->write(msg->message);
 }
 
 void SeptentrioNode::publishGPS(GlobalCoord gc)
 {
+    // Create NavSatFix message and fill in header
     sensor_msgs::msg::NavSatFix m;
     m.header.stamp = now();
     m.header.frame_id = "gps";
 
+    // Fill in the NavSatFix message GPS data
     m.latitude  = gc.latitude;
     m.longitude = gc.longitude;
     m.altitude  = gc.altitude;
 
+    // Fill in NavSatFix message covariance matrix (diagonal)
     m.position_covariance[0] = gc.covariance.x;
     m.position_covariance[4] = gc.covariance.y;
     m.position_covariance[8] = gc.covariance.z;
     
+    // Set the covariance type based on whether the covariance is known
     m.position_covariance_type = (gc.covariance.x > 0.0)
         ? sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN
         : sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
 
+    // Set the status of the GPS fix
     m.status.status = static_cast<int8_t>(gc.status);
+
+    // Publish the NavSatFix message for antenna 1
     ant1_pub_->publish(m);
 }
 
 void SeptentrioNode::publishHeading(Orientation att)
 {
+    // Check if the yaw value is finite; 
+    // if not, publish NaN values for all headings and return
     if (!std::isfinite(att.pry.z))
     {
         const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -133,6 +148,8 @@ void SeptentrioNode::publishHeading(Orientation att)
 
         return;
     }
+
+    // Calculate headings in both NED and ENU frames
     double heading_ned = getHeadingNED(att.pry.z);
     double heading_enu = getHeadingENU(att.pry.z);
 
@@ -185,7 +202,9 @@ void SeptentrioNode::publishHeading(Orientation att)
 
 void SeptentrioNode::publishBaseline(Baseline b)
 {
+    // Store the last baseline for use in differential GPS calculations
     last_baseline_ = std::make_unique<Baseline>(b);
+    baseline_received_since_last_gga_ = true;
 }
 
 void SeptentrioNode::publishVelocity(Velocity v)
@@ -209,108 +228,145 @@ void SeptentrioNode::publishVelocity(Velocity v)
     ned_velocity_pub_->publish(t_ned);
 }
 
+
 void SeptentrioNode::publishDiffGPS(DiffNavSatFix d)
 {
     LOG_FIRST_N(INFO, 1) << "[SEPT] Publishing combined fix + heading";
 
+    // 1. Extract GPS and orientation data
     GlobalCoord nmea = d.gps;
     Orientation att  = d.orientation;
 
+    // 2. Calculate ENU/NED headings
     double heading_enu = std::numeric_limits<double>::quiet_NaN();
     double heading_ned = std::numeric_limits<double>::quiet_NaN();
-
+    // If the orientation is valid, compute the headings
+    // If the orientation is not valid, the headings remain NaN
     if (std::isfinite(att.pry.z))
     {
         heading_enu = getHeadingENU(att.pry.z);
         heading_ned = getHeadingNED(att.pry.z);
     }
 
+    // 3. Convert antenna 1 to UTM
     double utm_n, utm_e;
-    geodetics::LLtoUTM(nmea.latitude, nmea.longitude, utm_n, utm_e, utm_zone_);
+    geodetics::LLtoUTM(
+        nmea.latitude,
+        nmea.longitude,
+        utm_n,
+        utm_e,
+        utm_zone_);
 
-    // Baseline translations map to a localized planar grid projection (inherently ENU)
-    double dE, dN;
-    if (last_baseline_ &&
-    (last_baseline_->delta.x != 0.0 || last_baseline_->delta.y != 0.0))
+    // 4. Get antenna 2 offset
+
+    // Use the current baseline if one was received.
+    // Otherwise, use zero offset so antenna 2 and center fall back to antenna 1.
+    double dE = 0.0;
+    double dN = 0.0;
+    if (baseline_received_since_last_gga_ &&
+        last_baseline_ &&
+        last_baseline_->init &&
+        last_baseline_->quality > 0)
     {
         dE = last_baseline_->delta.x;
         dN = last_baseline_->delta.y;
     }
-    else if (std::isfinite(heading_enu))
-    {
-        dE = -baseline_param_ * std::sin(heading_enu);
-        dN =  baseline_param_ * std::cos(heading_enu);
-    }
-    else
-    {
-        dE = 0.0;
-        dN = 0.0;
-    }
+
+    // Calculate antenna 2 position in UTM and convert back to LLA
     double ant2_e = utm_e + dE;
     double ant2_n = utm_n + dN;
-
     double ant2_lat, ant2_lon;
     geodetics::UTMtoLL(ant2_n, ant2_e, utm_zone_, ant2_lat, ant2_lon);
 
+    // 5. Build covariance information
     const bool cov_known = nmea.covariance.x > 0.0;
     const auto cov_type = cov_known
         ? sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN
         : sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
 
+    // 6. Publish antenna 2
     sensor_msgs::msg::NavSatFix ant2;
+
     ant2.header.stamp = now();
     ant2.header.frame_id = "gps";
     ant2.latitude  = ant2_lat;
     ant2.longitude = ant2_lon;
     ant2.altitude  = nmea.altitude;
+
     ant2.position_covariance.fill(0.0);
     ant2.position_covariance[0] = nmea.covariance.x;
     ant2.position_covariance[4] = nmea.covariance.y;
     ant2.position_covariance[8] = nmea.covariance.z;
+
     ant2.status.status = nmea.status;
     ant2.position_covariance_type = cov_type;
+
     ant2_pub_->publish(ant2);
 
+    // 7. Center = midpoint between antenna 1 and antenna 2
+
+    // If antenna 2 has no current baseline, dE/dN are zero,
+    // so the center automatically becomes antenna 1.
+
+    // Create a NavSatFix message for the center position
     sensor_msgs::msg::NavSatFix center;
     center.header = ant2.header;
 
+    // Calculate the midpoint in UTM coordinates
     double center_e = 0.5 * (utm_e + ant2_e);
     double center_n = 0.5 * (utm_n + ant2_n);
+
+    // Convert the midpoint back to latitude and longitude
     double center_lat, center_lon;
     geodetics::UTMtoLL(center_n, center_e, utm_zone_, center_lat, center_lon);
 
+    // Fill in the center NavSatFix message with the calculated midpoint and covariance
     center.latitude  = center_lat;
     center.longitude = center_lon;
     center.altitude  = nmea.altitude;
     center.position_covariance = ant2.position_covariance;
     center.status = ant2.status;
     center.position_covariance_type = cov_type;
+
     center_pub_->publish(center);
 
-    // 5. Build Base Message Variant Container
+    // 8. Build base differential GPS message
     dgps_msgs::msg::DifferentialNavSatFix dmsg_base;
+
     dmsg_base.nmea.latitude  = nmea.latitude;
     dmsg_base.nmea.longitude = nmea.longitude;
     dmsg_base.nmea.altitude  = nmea.altitude;
+
     dmsg_base.nmea.position_covariance.fill(0.0);
     dmsg_base.nmea.position_covariance[0] = nmea.covariance.x;
     dmsg_base.nmea.position_covariance[4] = nmea.covariance.y;
     dmsg_base.nmea.position_covariance[8] = nmea.covariance.z;
+
     dmsg_base.nmea.status.status = nmea.status;
     dmsg_base.nmea.position_covariance_type = cov_type;
     dmsg_base.heading_covariance = static_cast<float>(att.cov.z);
 
-    // 6. Publish to ENU Custom Fix Topic
+    // 9. Publish ENU differential fix
     dgps_msgs::msg::DifferentialNavSatFix dmsg_enu = dmsg_base;
-    dmsg_enu.heading     = static_cast<float>(heading_enu);
+
+    dmsg_enu.heading = static_cast<float>(heading_enu);
+
     dmsg_enu.heading_deg = static_cast<float>(heading_enu * 180.0 / M_PI);
+
     enu_dfix_pub_->publish(dmsg_enu);
 
-    // 7. Publish to NED Custom Fix Topic
+    // 10. Publish NED differential fix
     dgps_msgs::msg::DifferentialNavSatFix dmsg_ned = dmsg_base;
-    dmsg_ned.heading     = static_cast<float>(heading_ned);
+
+    dmsg_ned.heading = static_cast<float>(heading_ned);
+
     dmsg_ned.heading_deg = static_cast<float>(heading_ned * 180.0 / M_PI);
+
     ned_dfix_pub_->publish(dmsg_ned);
+
+    // The next GGA needs a new baseline.
+    baseline_received_since_last_gga_ = false;
 }
+
 
 RCLCPP_COMPONENTS_REGISTER_NODE(dgps::SeptentrioNode)
