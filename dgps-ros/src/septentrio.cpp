@@ -231,8 +231,6 @@ void SeptentrioGPS::stop()
 
 void SeptentrioGPS::setGpsCallback(std::function<void(GlobalCoord)> cb)       { gpsCallback_ = std::move(cb); }
 void SeptentrioGPS::setAttitudeCallback(std::function<void(Orientation)> cb)  { attitudeCallback_ = std::move(cb); }
-void SeptentrioGPS::setBaselineCallback(std::function<void(Baseline)> cb)     { baselineCallback_ = std::move(cb); }
-void SeptentrioGPS::setVelocityCallback(std::function<void(Velocity)> cb)     { velocityCallback_ = std::move(cb); }
 void SeptentrioGPS::setDiffGpsCallback(std::function<void(DiffNavSatFix)> cb) { dgpsCallback_ = std::move(cb); }
 
 void SeptentrioGPS::write(const std::vector<uint8_t>& data)
@@ -349,31 +347,6 @@ void SeptentrioGPS::read()
             double pitch = rbd.elevation_deg * M_PI / 180.0;
             Vector3 pry{pitch, 0.0, yaw};
             orient_ = std::make_unique<Orientation>(pry, Vector3{0.0, 0.0, 0.0}, rbd.quality, 0.0);
-        }
-        else if (line.rfind("$PSSN,RBP", 0) == 0)
-        {
-            auto rbp = SeptentrioParser::parseRBP(line);
-            if (!rbp.init || rbp.quality == 0) continue;
-            LOG_FIRST_N(INFO, 1) << "[SEPT] Got RBP position (quality " << rbp.quality << ")";
-
-            Baseline b;
-            b.delta   = Vector3{rbp.east, rbp.north, rbp.up};  // ENU
-            b.length  = std::sqrt(rbp.east * rbp.east + rbp.north * rbp.north + rbp.up * rbp.up);
-            b.azimuth = std::atan2(rbp.east, rbp.north);        // NED heading of baseline
-            b.quality = rbp.quality;
-            b.init = true;
-            if (baselineCallback_) baselineCallback_(b);
-        }
-        else if (line.rfind("$PSSN,RBV", 0) == 0)
-        {
-            auto rbv = SeptentrioParser::parseRBV(line);
-            if (!rbv.init || rbv.quality == 0) continue;
-            LOG_FIRST_N(INFO, 1) << "[SEPT] Got RBV velocity (quality " << rbv.quality << ")";
-
-            Velocity v;
-            v.v       = Vector3{rbv.vel_east, rbv.vel_north, rbv.vel_up};  // ENU
-            v.quality = rbv.quality;
-            if (velocityCallback_) velocityCallback_(v);
         }
         else if (line.compare(3, 3, "GLL") == 0)
         {
