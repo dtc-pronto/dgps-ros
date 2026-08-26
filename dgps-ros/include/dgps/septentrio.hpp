@@ -11,18 +11,72 @@
 #pragma once
 
 #include <atomic>
-#include <thread>
 #include <functional>
-#include <optional>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "dgps/serial.hpp"
-#include "dgps/differential_gps.hpp"  // reuse Vector3, GlobalCoord, Orientation, DiffNavSatFix
 
 namespace dgps
 {
+
+// -----------------------------------------------------------------------------
+// Data types used by the Septentrio driver
+// -----------------------------------------------------------------------------
+
+struct Vector3
+{
+    Vector3() = default;
+    Vector3(double x, double y, double z) : x{x}, y{y}, z{z} {}
+
+    double x{-1.0};
+    double y{-1.0};
+    double z{-1.0};
+};
+
+struct GlobalCoord
+{
+    double latitude{0.0};
+    double longitude{0.0};
+    double altitude{0.0};
+    Vector3 covariance;
+    int status{0};
+};
+
+struct Orientation
+{
+    Orientation() = default;
+
+    Orientation(Vector3 o, Vector3 c, int s, double b)
+        : pry{o}, cov{c}, status{s}, baseline{b} {}
+
+    Vector3 pry;
+    Vector3 cov;
+    int status{0};
+    double baseline{0.0};
+};
+
+struct Baseline
+{
+    double north{0.0};
+    double east{0.0};
+    double down{0.0};
+    double length{0.0};
+    int status{0};
+};
+
+struct DiffNavSatFix
+{
+    GlobalCoord gps;
+    Orientation orientation;
+};
+
+// -----------------------------------------------------------------------------
+// Septentrio NMEA structures
+// -----------------------------------------------------------------------------
+
 namespace SeptNMEA
 {
 
@@ -49,7 +103,7 @@ struct GLL
     bool init{false};
 };
 
-// $--GST pseudorange error statistics — gives per-axis 1-sigma in metres
+// $--GST pseudorange error statistics
 struct GST
 {
     double timestamp{0.0};
@@ -66,77 +120,142 @@ struct GST
 // $--HDT true heading
 struct HDT
 {
-    double heading_deg{0.0};   // true heading [deg, 0=N, 90=E]; empty when no solution
+    double heading_deg{0.0};
     bool init{false};
 };
 
-// $PSSN,RBD — Rover-Base Direction  (Ref. Guide C.1.2)
-// $PSSN,RBD,hhmmss.ss,ddmmyy,azimuth,elevation,sats,quality,base_motion,corr_age,serial,base_id*cs
+// $PSSN,RBD — Rover-Base Direction
 struct RBD
 {
     double timestamp{0.0};
-    double azimuth_deg{0.0};    // base as seen from rover, 0..360 increasing E, deg True
-    double elevation_deg{0.0};  // base as seen from rover, -90..90, deg
+    double azimuth_deg{0.0};
+    double elevation_deg{0.0};
     int satellites{0};
-    int quality{0};             // 0=Invalid 2=DGPS 4=RTK 5=Float RTK
-    int base_motion{0};         // 0=static 1=moving
+    int quality{0};
+    int base_motion{0};
     double correction_age{0.0};
     bool init{false};
 };
 
-}
+// $PSSN,RBP — Rover-Base Position
+struct RBP
+{
+    double timestamp{0.0};
+    double north{0.0};
+    double east{0.0};
+    double up{0.0};
+    int satellites{0};
+    int quality{0};
+    int base_motion{0};
+    double correction_age{0.0};
+    bool init{false};
+};
+
+// $PSSN,RBV — Rover-Base Velocity
+struct RBV
+{
+    double timestamp{0.0};
+    double vel_north{0.0};
+    double vel_east{0.0};
+    double vel_up{0.0};
+    int satellites{0};
+    int quality{0};
+    int base_motion{0};
+    double correction_age{0.0};
+    bool init{false};
+};
+
+} // namespace SeptNMEA
+
+// -----------------------------------------------------------------------------
+// Septentrio parser
+// -----------------------------------------------------------------------------
 
 class SeptentrioParser
 {
-    public:
-        static SeptNMEA::GGA parseGGA(const std::string& line);
-        static SeptNMEA::GLL parseGLL(const std::string& line);
-        static SeptNMEA::GST parseGST(const std::string& line);
-        static SeptNMEA::HDT parseHDT(const std::string& line);
-        static SeptNMEA::RBD parseRBD(const std::string& line);
+public:
+    static SeptNMEA::GGA parseGGA(const std::string& line);
+    static SeptNMEA::GLL parseGLL(const std::string& line);
+    static SeptNMEA::GST parseGST(const std::string& line);
+    static SeptNMEA::HDT parseHDT(const std::string& line);
+    static SeptNMEA::RBD parseRBD(const std::string& line);
+    static SeptNMEA::RBP parseRBP(const std::string& line);
+    static SeptNMEA::RBV parseRBV(const std::string& line);
 
-    private:
-        static std::vector<std::string> split(const std::string& s, char delim);
-        static std::string stripChecksum(const std::string& s);
-        static double nmeaToDeg(const std::string& val, const std::string& dir);
-        static const std::string& field(const std::vector<std::string>& f, size_t idx);
-        static double safeStod(const std::string& s, double fallback = 0.0);
-        static int safeStoi(const std::string& s, int fallback = 0);
+private:
+    static std::vector<std::string> split(
+        const std::string& s, char delim);
+
+    static std::string stripChecksum(
+        const std::string& s);
+
+    static double nmeaToDeg(
+        const std::string& val,
+        const std::string& dir);
+
+    static const std::string& field(
+        const std::vector<std::string>& f,
+        size_t idx);
+
+    static double safeStod(
+        const std::string& s,
+        double fallback = 0.0);
+
+    static int safeStoi(
+        const std::string& s,
+        int fallback = 0);
 };
+
+// -----------------------------------------------------------------------------
+// Septentrio GPS driver
+// -----------------------------------------------------------------------------
 
 class SeptentrioGPS
 {
-    public:
-        SeptentrioGPS() = default;
-        SeptentrioGPS(const std::string& nmea_dev, int nmea_baud,
-                      const std::string& rtcm_dev, int rtcm_baud);
-        ~SeptentrioGPS();
+public:
+    SeptentrioGPS() = default;
 
-        void start();
-        void stop();
+    SeptentrioGPS(
+        const std::string& nmea_dev,
+        int nmea_baud,
+        const std::string& rtcm_dev,
+        int rtcm_baud);
 
-        void setGpsCallback(std::function<void(GlobalCoord)> cb);
-        void setAttitudeCallback(std::function<void(Orientation)> cb);
-        void setBaselineCallback(std::function<void(Baseline)> cb);
-        void setDiffGpsCallback(std::function<void(DiffNavSatFix)> cb);
+    ~SeptentrioGPS();
 
-        void write(const std::vector<uint8_t>& data);  // RTCM out → rtcm port
+    void start();
+    void stop();
 
-    private:
-        void read();
+    void setGpsCallback(
+        std::function<void(GlobalCoord)> cb);
 
-        SerialCore nmea_serial_;
-        std::unique_ptr<SerialCore> rtcm_serial_;
+    void setAttitudeCallback(
+        std::function<void(Orientation)> cb);
 
-        std::thread read_thread_;
-        std::atomic<bool> running_{false};
+    void setBaselineCallback(
+        std::function<void(Baseline)> cb);
 
-        std::function<void(GlobalCoord)>  gpsCallback_;
-        std::function<void(Orientation)>  attitudeCallback_;
-        std::function<void(DiffNavSatFix)> dgpsCallback_;
+    void setDiffGpsCallback(
+        std::function<void(DiffNavSatFix)> cb);
 
-        std::unique_ptr<Vector3>     gps_cov_;   // from GST [m^2]
-        std::unique_ptr<Orientation> orient_;    // from HDT / RBD
+    void write(const std::vector<uint8_t>& data);
+
+private:
+    void read();
+
+    SerialCore nmea_serial_;
+    std::unique_ptr<SerialCore> rtcm_serial_;
+
+    std::thread read_thread_;
+    std::atomic<bool> running_{false};
+
+    std::function<void(GlobalCoord)> gpsCallback_;
+    std::function<void(Orientation)> attitudeCallback_;
+    std::function<void(Baseline)> baselineCallback_;
+    std::function<void(DiffNavSatFix)> dgpsCallback_;
+
+    std::unique_ptr<Vector3> gps_cov_;
+    std::unique_ptr<Orientation> orient_;
 };
 
 } // namespace dgps

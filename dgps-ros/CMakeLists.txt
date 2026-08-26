@@ -41,11 +41,6 @@ target_link_libraries(${PROJECT_NAME}
   ${LIBSERIAL_LIBRARIES}
 )
 
-add_executable(dgps_test test/test_serial.cpp)
-target_link_libraries(dgps_test
-  ${PROJECT_NAME}
-)
-
 add_executable(septentrio_test test/test_septentrio.cpp)
 target_link_libraries(septentrio_test
   ${PROJECT_NAME}
@@ -101,7 +96,6 @@ install(TARGETS
 
 # Install Cpp executables
 install(TARGETS
-  ${PROJECT_NAME}_node
   septentrio_node
   rtcm_receiver_node
   DESTINATION lib/${PROJECT_NAME}

@@ -5,7 +5,7 @@
 * @About test the serial connection and data output
 */
 
-#include "dgps/differential_gps.hpp"
+#include "dgps/septentrio.hpp"
 
 int main() {
 

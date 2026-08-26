@@ -39,7 +39,6 @@ class SeptentrioNode : public rclcpp::Node
         void publishGPS(GlobalCoord gc);
         void publishHeading(Orientation att);
         void publishBaseline(Baseline b);
-        void publishVelocity(Velocity v);
         void publishDiffGPS(DiffNavSatFix d);
 
         void rtcmCallback(const rtcm_msgs::msg::Message::SharedPtr msg);
@@ -49,21 +48,17 @@ class SeptentrioNode : public rclcpp::Node
 
         // Invariant global coordinate publishers
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr ant1_pub_;
-        rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr ant2_pub_;
-        rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr center_pub_;
 
         // ENU Frame Localized Publishers
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr enu_heading_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr enu_heading_deg_pub_;
         rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr enu_orient_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr enu_velocity_pub_;
         rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr enu_dfix_pub_;
 
         // NED Frame Localized Publishers
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr ned_heading_deg_pub_;
         rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr ned_orient_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr ned_velocity_pub_;
         rclcpp::Publisher<dgps_msgs::msg::DifferentialNavSatFix>::SharedPtr ned_dfix_pub_;
 
         rclcpp::Subscription<rtcm_msgs::msg::Message>::SharedPtr rtcm_sub_;
